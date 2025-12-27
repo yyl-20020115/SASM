@@ -1,0 +1,4643 @@
+0000                       0001 ; Seattle Computer Products 8086 Assembler  version 2.44
+0000                       0002 ;   by Tim Paterson
+0000                       0003 ; Runs on the 8086 under MS-DOS
+0000                       0004 
+***** ERROR:  Illegal character in label or opcode
+0000                       0005 ;* * * * * * REVISION HISTORY * * * * * *
+0000                       0006 ;
+0000                       0007 ; 12/29/80  2.01  General release with 86-DOS version 0.34
+0000                       0008 ; 02/22/81  2.10  Increased buffer size from 128 bytes to 1024 bytes
+0000                       0009 ; 03/18/81  2.11  General cleanup and more documentation
+0000                       0010 ; 03/24/81  2.20  Modify ESC handling for full 8087 operation
+0000                       0011 ; 04/01/81  2.21  Fix date in HEX and PRN files; modify buffer handling
+0000                       0012 ; 04/03/81  2.22  Fix 2.21 buffer handling
+0000                       0013 ; 04/13/81  2.23  Re-open source file for listing to allow assembling CON:
+0000                       0014 ; 04/28/81  2.24  Allow nested IFs
+0000                       0015 ; 07/30/81  2.25  Add Intel string mnemonics; clean up a little
+0000                       0016 ; 08/02/81  2.30  Re-write pass 2:
+0000                       0017 ;			Always report errors to console
+0000                       0018 ;			Exact byte lengths for HEX and PRN files
+0000                       0019 ; 11/08/81  2.40  Add 8087 mnemonics; print full error messages;
+0000                       0020 ;		  allow expressions with *, /, and ()
+0000                       0021 ; 07/04/82  2.41  Fix Intel's 8087 "reverse-bit" bug; don't copy date
+0000                       0022 ; 08/18/82  2.42  Increase stack from 80 to 256 (Damn! Overflowed again!)
+0000                       0023 ; 01/05/83  2.43  Correct over-zealous optimization in 2.42
+0000                       0024 ; 05/09/83  2.44  Add memory usage report
+0000                       0025 ;
+0000                       0026 ;* * * * * * * * * * * * * * * * * * * * *
+0000                       0027 
+***** ERROR:  Illegal character in label or opcode
+0000                       0028 SYMWID:	EQU	5	;5 symbols per line in dump
+0000                       0029 FCB:	EQU	5CH
+***** ERROR:  Invalid operand
+0000                       0030 BUFSIZ:	EQU	1024	;Source code buffer
+***** ERROR:  Undefined label not allowed
+0000                       0031 LSTBUFSIZ:EQU	BUFSIZ	;List file buffer
+0000                       0032 HEXBUFSIZ:EQU	70	;Hex file buffer (26*2 + 5*2 + 3 + EXTRA)
+0000                       0033 EOL:	EQU	13	;ASCII carriage return
+0000                       0034 OBJECT:	EQU	100H	;DEFAULT "PUT" ADDRESS
+***** ERROR:  Illegal character in label or opcode
+0000                       0035 
+0000                       0036 ;System call function codes
+***** ERROR:  Invalid operand
+0000                       0037 PRINTMES: EQU	9
+***** ERROR:  Invalid operand
+0000                       0038 OPEN:	EQU	15
+***** ERROR:  Invalid operand
+0000                       0039 CLOSE:	EQU	16
+***** ERROR:  Invalid operand
+0000                       0040 READ:	EQU	20
+0000                       0041 SETDMA:	EQU	26
+0000                       0042 MAKE:	EQU	22
+0000                       0043 BLKWRT:	EQU	40
+0000                       0044 
+0000                       0045 ;The following equates define some token values returned by GETSYM
+0000                       0046 UNDEFID:EQU	0	;Undefined identifier (including no nearby RET)
+0000                       0047 CONST:	EQU	1	;Constant (including $)
+***** ERROR:  Illegal character in label or opcode
+0000                       0048 REG:	EQU	2	;8-bit register
+0000                       0049 XREG:	EQU	3	;16-bit register (except segment registers)
+0000                       0050 SREG:	EQU	4	;Segment register
+0000                       0051 FREG:	EQU	6	;8087 floating point register
+0000                       0052 
+0000                       0053 ;Bits to build 8087 opcode table entries
+0000                       0054 ONEREG:	EQU	40H	;Single ST register OK as operand
+0000                       0055 NEEDOP:	EQU	80H	;Must have an operand
+0000                       0056 INTEGER:EQU	20H	;For integer operations
+0000                       0057 REAL:	EQU	28H	;For real operations
+***** ERROR:  Illegal character in label or opcode
+0000                       0058 EXTENDED EQU	10H	;For Long integers or Temporary real
+***** ERROR:  Invalid operand
+0100                       0059 MEMORY:	EQU	18H	;For general memory operations
+***** ERROR:  Illegal character in label or opcode
+0100 EB 3C                 0060 STACKOP:EQU	10H	;Two register arithmetic with pop
+***** ERROR:  Invalid operand
+0102 0D 0A 53 65 61 74 74  0061 ARITH:	EQU	8	;Non-pop arithmetic operations
+     6C 65 20 43 6F 6D 70 
+     75 74 65 72 20 50 72 
+     6F 64 75 63 74 73 20 
+     38 30 38 36 20 41 73 
+     73 65 6D 62 6C 65 72 
+     20 56 65 72 73 69 6F 
+     6E 20 32 2E 34 34    
+***** ERROR:  Invalid operand
+0139 0D 0A 0D 0A 24        0062 
+***** ERROR:  Invalid operand
+013E                       0063 	ORG	100H
+***** ERROR:  Illegal character in label or opcode
+013E BC 00 00              0064 	PUT	100H
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+0141 B4 09                 0065 
+***** ERROR:  Invalid operand
+0143 A0 6D 00              0066 	JMPS	BEGIN
+***** ERROR:  Invalid operand
+0146 BE 65 00              0067 
+0149 AC                    0068 HEADER:	DB	13,10,'Seattle Computer Products 8086 Assembler Version 2.44'
+014A E8 BB 00              0069 	DB	13,10,'Copyright 1979-1983 by Seattle Computer Products, Inc.'
+014D 0A C0                 0070 	DB	13,10,13,10,'$'
+***** ERROR:  Invalid operand
+014F A2 5C 00              0071 
+***** ERROR:  Invalid operand
+0152 AC                    0072 BEGIN:
+0153 3C 5A                 0073 	MOV	SP,STACK
+0155 74 00                 0074 	MOV	DX,HEADER
+***** ERROR:  Invalid operand
+0157                       0075 	MOV	AH,PRINTMES
+***** ERROR:  Illegal character in label or opcode
+0157 A2 D5 12              0076 	INT	33
+***** ERROR:  Invalid operand
+015A B4 00                 0077 	MOV	AL,[FCB+17]
+015C 3C 5A                 0078 	MOV	[SYMFLG],AL	;Save symbol table request flag
+015E 74 00                 0079 	MOV	SI,FCB+9	;Point to file extension
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+0160 74 00                 0080 	LODB			;Get source drive letter
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+0162 3C 58                 0081 	CALL	CHKDSK		;Valid drive?
+0164 74 00                 0082 	OR	AL,AL
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+0166 3C 50                 0083 	JZ	DEFAULT		;If no extension, use existing drive spec
+0168 74 00                 0084 	MOV	[FCB],AL
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+016A B4 80                 0085 DEFAULT:
+***** ERROR:  Invalid operand
+016C A2 00 00              0086 	LODB			;Get HEX file drive letter
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+016F BE CD 12              0087 	CMP	AL,'Z'		;Suppress HEX file?
+***** ERROR:  Invalid operand
+0172 A5                    0088 	JZ	L0000
+***** ERROR:  Invalid operand
+0173 A5                    0089 	CALL	CHKDSK
+0174 BA 5C 00              0090 L0000:	
+***** ERROR:  Invalid operand
+0177 CD 21                 0091 	MOV	[HEXFCB],AL
+***** ERROR:  Invalid operand
+0179 0A C0                 0092 	LODB			;Get PRN file drive letter
+***** ERROR:  Invalid operand
+017B E9 00 00              0093 	MOV	AH,0		;Signal no PRN file
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+017E E8 72 00              0094 	CMP	AL,'Z'		;Suppress PRN file?
+***** ERROR:  Invalid operand
+0181 E8 6F 00              0095 	JZ	NOPRN
+***** ERROR:  Invalid operand
+0184 A3 68 00              0096 	CMP	AL,'Y'		;Print errors only on console?
+0187 A2 7C 00              0097 	JZ	NOPRN
+018A C7 06 6A 00 00 00     0098 	MOV	AH,2
+***** ERROR:  Undefined label
+0190 C7 06 00 00 6C 13     0099 	CMP	AL,'X'		;PRN file to console?
+***** ERROR:  Undefined label
+0196 C7 06 00 00 6D 13     0100 	JZ	NOPRN
+***** ERROR:  Undefined label
+019C C7 06 68 13 6C 13     0101 	MOV	AH,4
+01A2 33 C0                 0102 	CMP	AL,'P'		;PRN file to printer?
+***** ERROR:  Invalid operand
+01A4 A3 00 00              0103 	JZ	NOPRN
+***** ERROR:  Undefined label
+01A7 A3 00 00              0104 	CALL	CHKDSK
+***** ERROR:  Undefined label
+01AA A2 00 00              0105 	MOV	AH,80H
+***** ERROR:  Undefined label
+01AD A2 62 13              0106 NOPRN:
+01B0 48                    0107 	MOV	[LSTFCB],AL
+***** ERROR:  Invalid operand
+01B1 A1 06 00              0108 	MOV	[LSTDEV],AH	;Flag device for list ouput
+01B4 A3 56 13              0109 	MOV	SI,EXTEND
+01B7 C7 06 5A 13 04 00     0110 	MOV	DI,FCB+9
+01BD                       0111 	MOVW
+***** ERROR:  Illegal character in label or opcode
+01BD                       0112 	MOVB			;Set extension to ASM
+01BD                       0113 	MOVW			;Zero extent field
+***** ERROR:  Illegal character in label or opcode
+01BD                       0114 	MOV	DX,FCB
+***** ERROR:  Illegal character in label or opcode
+01BD E8 55 00              0115 	MOV	AH,OPEN
+01C0 3C 1A                 0116 	INT	33
+***** ERROR:  Invalid operand
+01C2 B0 FF                 0117 	MOV	BX,NOFILE
+01C4 A2 55 13              0118 	OR	AL,AL
+***** ERROR:  Invalid operand
+01C7 A0 55 13              0119 	JZ	$+5
+***** ERROR:  Invalid operand
+01CA 75 00                 0120 	JMP	PRERR
+***** ERROR:  Invalid operand
+01CC                       0121 	MOV	DX,HEXFCB
+***** ERROR:  Illegal character in label or opcode
+01CC 3C 3B                 0122 	CALL	MAKFIL
+***** ERROR:  Invalid operand
+01CE 3C 0D                 0123 	MOV	DX,LSTFCB
+***** ERROR:  Invalid operand
+01D0 B0 14                 0124 	CALL	MAKFIL
+01D2 EB 02                 0125 	XOR	AX,AX
+***** ERROR:  Invalid operand
+01D4                       0126 	MOV	[FCB+12],AX	;Zero CURRENT BLOCK field
+***** ERROR:  Illegal character in label or opcode
+01D4                       0127 	MOV	[FCB+32],AL	;Zero Next Record field
+***** ERROR:  Illegal character in label or opcode
+01D4 32 C0                 0128 	MOV	[FCB+14],BUFSIZ	;Set record size
+01D6                       0129 	MOV	[BUFPT],SRCBUF	;Initialize buffer pointer
+***** ERROR:  Illegal character in label or opcode
+01D6                       0130 	MOV	[CODE],START+1	;POINTER TO NEXT BYTE OF INTERMEDIATE CODE
+01D6 BC 00 00              0131 	MOV	[IY],START	;POINTER TO CURRENT RELOCATION BYTE
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+01D9 EB E2                 0132 	XOR	AX,AX
+***** ERROR:  Invalid operand
+01DB                       0133 	MOV	[PC],AX		;DEFAULT PROGRAM COUNTER
+***** ERROR:  Illegal character in label or opcode
+01DB B5 C0                 0134 	MOV	[BASE],AX	;POINTER TO ROOT OF ID TREE=NIL
+01DD E8 00 00              0135 	MOV	[RETPT],AX	;Pointer to last RET record
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+01E0 A0 00 00              0136 	MOV	[IFFLG],AL	;NOT WITHIN IF/ENDIF
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+01E3 3C 0A                 0137 	MOV	[CHKLAB],AL	;LOOKUP ALL LABELS
+***** ERROR:  Invalid operand
+01E5 3C 1A                 0138 	DEC	AX
+***** ERROR:  Invalid operand
+01E7 E8 2B 00              0139 	MOV	[LSTRET],AX	;Location of last RET
+01EA EB 00                 0140 	MOV	AX,[6]		;HL=END OF MEMORY
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+01EC                       0141 	MOV	[HEAP],AX	;BACK END OF SYMBOL TABLE SPACE
+***** ERROR:  Illegal character in label or opcode
+01EC BB 82 12              0142 	MOV	[BCOUNT],4	;CODE BYTES PER RELOCATION BYTE
+***** ERROR:  Invalid operand
+01EF 8B D3                 0143 
+***** ERROR:  Invalid operand
+01F1 CD 21                 0144 ;Assemble each line of code
+***** ERROR:  Invalid operand
+01F3                       0145 
+***** ERROR:  Illegal character in label or opcode
+01F3                       0146 LOOP:
+***** ERROR:  Illegal character in label or opcode
+01F3 8B F2                 0147 	CALL	NEXTCHR		;Get first character on line
+***** ERROR:  Invalid operand
+01F5 3C 20                 0148 	CMP	AL,1AH
+01F7 73 AC                 0149 	JZ	ENDJ
+***** ERROR:  Invalid operand
+***** ERROR:  Value out of range (forward)
+01F9 8B FE                 0150 	MOV	AL,-1		;Flag that no tokens have been read yet
+***** ERROR:  Invalid operand
+01FB F3                    0151 	MOV	[SYM],AL
+***** ERROR:  Invalid operand
+01FC B4 00                 0152 	CALL	ASMLIN		;Assemble the line
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+01FE C7 45 05 01 00        0153 	MOV	AL,[SYM]
+0203 BB 00 00              0154 	CMP	AL,-1		;Any tokens found on line?
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+0206 75 00                 0155 	JNZ	L0002
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+0208                       0156 	CALL	GETSYM		;If no tokens read yet, read first one
+***** ERROR:  Illegal character in label or opcode
+0208                       0157 L0002:	
+***** ERROR:  Illegal character in label or opcode
+0208 2C 20                 0158 	CMP	AL,';'
+020A 74 99                 0159 	JZ	ENDLN
+***** ERROR:  Invalid operand
+***** ERROR:  Value out of range (forward)
+020C 74 02                 0160 	CMP	AL,EOL
+020E 3C 10                 0161 	JZ	ENDLN
+***** ERROR:  Invalid operand
+0210                       0162 	MOV	AL,14H		;Garbage at end of line error
+***** ERROR:  Illegal character in label or opcode
+0210 BB 00 00              0163 	JP	ENDLIN
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+0213                       0164 ENDJ:	JMP	END
+***** ERROR:  Illegal character in label or opcode
+0213                       0165 
+***** ERROR:  Illegal character in label or opcode
+0213 8A C1                 0166 ENDLN:
+***** ERROR:  Invalid operand
+0215                       0167 	XOR	AL,AL		;Flag no errors on line
+***** ERROR:  Illegal character in label or opcode
+0215                       0168 ENDLIN:
+***** ERROR:  Illegal character in label or opcode
+0215 8B 36 00 00           0169 ;AL = error code for line. Stack depth unknown
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+0219 75 10                 0170 	MOV	SP,STACK
+***** ERROR:  Invalid operand
+021B 52                    0171 	CALL	NEXLIN
+***** ERROR:  Invalid operand
+021C 8B D6                 0172 	JP	LOOP
+***** ERROR:  Invalid operand
+021E CD 21                 0173 
+***** ERROR:  Invalid operand
+0220 B4 00                 0174 NEXLIN:
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+0222 92                    0175 	MOV	CH,0C0H		;Put end of line marker and error code (AL)
+0223 58                    0176 	CALL	PUTCD
+0224 8A C2                 0177 	CALL	GEN1
+0226 5A                    0178 	MOV	AL,[CHR]
+***** ERROR:  Invalid operand
+0227 B0 1A                 0179 GETEOL:
+0229 74 03                 0180 	CMP	AL,10
+022B                       0181 	JZ	RET
+***** ERROR:  Illegal character in label or opcode
+022B AC                    0182 	CMP	AL,1AH
+***** ERROR:  Invalid operand
+022C 75 00                 0183 	JZ	ENDJ
+***** ERROR:  Invalid operand
+022E                       0184 	CALL	NEXTCHR		;Scan over comments for linefeed
+***** ERROR:  Illegal character in label or opcode
+022E 89 36 00 00           0185 	JP	GETEOL
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+0232                       0186 
+***** ERROR:  Invalid operand
+0232                       0187 ABORT:
+***** ERROR:  Illegal character in label or opcode
+0232                       0188 	MOV	BX,NOMEM
+***** ERROR:  Illegal character in label or opcode
+0232                       0189 PRERR:
+***** ERROR:  Illegal character in label or opcode
+0232                       0190 	MOV	DX,BX
+0232                       0191 	MOV	AH,PRINTMES
+0232                       0192 	INT	33
+***** ERROR:  Illegal character in label or opcode
+0232 51                    0193 	INT	32
+0233 E8 99 00              0194 
+***** ERROR:  Invalid operand
+0236 E8 91 00              0195 MAKFIL:
+***** ERROR:  Invalid operand
+0239 B0 04                 0196 	MOV	SI,DX
+023B 3A C7                 0197 	LODB			;Get drive select byte
+***** ERROR:  Invalid operand
+023D 3A C6                 0198 	CMP	AL,20H		;If not valid, don't make file
+***** ERROR:  Invalid operand
+023F B0 01                 0199 	JNC	RET
+0241 B1 1A                 0200 	MOV	CX,4
+***** ERROR:  Invalid operand
+0243 74 CE                 0201 	MOV	DI,SI
+0245 59                    0202 	MOV	SI,FCB+1
+0246 3A C6                 0203 	REP
+0248 74 5B                 0204 	MOVW			;Copy source file name
+***** ERROR:  Invalid operand
+***** ERROR:  Value out of range (forward)
+024A 3A C7                 0205 	MOV	AH,MAKE
+***** ERROR:  Invalid operand
+024C 3A C6                 0206 	INT	33
+***** ERROR:  Invalid operand
+024E F6 C1 01              0207 	MOV	[DI-9+14],1	;Set record length to 1 byte
+0251 B1 1B                 0208 	MOV	BX,NOSPAC
+***** ERROR:  Invalid operand
+0253 8A C6                 0209 	OR	AL,AL		;Success?
+***** ERROR:  Invalid operand
+0255                       0210 	JNZ	PRERR
+***** ERROR:  Illegal character in label or opcode
+0255 B1 16                 0211 	RET
+***** ERROR:  Invalid operand
+0257                       0212 
+***** ERROR:  Illegal character in label or opcode
+0257 24 01                 0213 CHKDSK:
+0259 0A C5                 0214 	SUB	AL,' '		;If not present, set zero flag
+025B E8 17 05              0215 	JZ	RET
+025E 59                    0216 	SUB	AL,20H
+025F 8A C3                 0217 	JZ	DSKERR		;Must be in range A-O
+***** ERROR:  Invalid operand
+0261 02 C0                 0218 	CMP	AL,'P'-'@'
+***** ERROR:  Invalid operand
+0263 0C C0                 0219 	JC	RET
+0265 0A C2                 0220 DSKERR:
+0267 E9 0B 05              0221 	MOV	BX,BADDSK
+***** ERROR:  Invalid operand
+026A                       0222 	JP	PRERR
+***** ERROR:  Illegal character in label or opcode
+026A                       0223 
+026A 59                    0224 ERROR:
+026B F6 C1 08              0225 	MOV	AL,CL
+026E B1 16                 0226 	JMP	ENDLIN
+***** ERROR:  Invalid operand
+0270 B9 03 8E              0227 
+0273 B0 00                 0228 NEXTCHR:
+***** ERROR:  Invalid operand
+0275 74 16                 0229 	MOV	SI,[BUFPT]
+***** ERROR:  Invalid operand
+0277 74 0C                 0230 	CMP	SI,SRCBUF
+***** ERROR:  Invalid operand
+0279 2A C6                 0231 	JNZ	GETCH
+027B 74 D8                 0232 ;Buffer empty so refill it
+027D B5 8C                 0233 	PUSH	DX
+027F 87 DA                 0234 	PUSH	AX		;AH must be saved
+0281 B0 03                 0235 	MOV	DX,SI
+***** ERROR:  Invalid operand
+0283 EB D0                 0236 	MOV	AH,SETDMA
+***** ERROR:  Invalid operand
+0285                       0237 	INT	33
+***** ERROR:  Illegal character in label or opcode
+0285 F6 C1 04              0238 	MOV	DX,FCB
+0288 75 39                 0239 	MOV	AH,READ
+***** ERROR:  Invalid operand
+028A 80 E5 FD              0240 	INT	33
+028D                       0241 	XCHG	AX,DX		;Put error code in DL
+***** ERROR:  Illegal character in label or opcode
+028D B6 19                 0242 	POP	AX		;Restore AH
+***** ERROR:  Invalid operand
+028F 74 00                 0243 	MOV	AL,DL		;Error code back in AL
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+0291 3C 02                 0244 	POP	DX
+0293 75 00                 0245 	CMP	AL,1
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+0295 F6 C1 01              0246 	MOV	AL,1AH		;Possibly signal End of File
+0298 74 00                 0247 	JZ	NOMOD		;If nothing read
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+029A 8A C2                 0248 GETCH:
+***** ERROR:  Invalid operand
+029C 0A C3                 0249 	LODB
+029E 75 10                 0250 	CMP	SI,SRCBUF+BUFSIZ
+***** ERROR:  Invalid operand
+02A0 74 0E                 0251 	JNZ	NOMOD
+02A2                       0252 	MOV	SI,SRCBUF
+02A2 8A C5                 0253 NOMOD:
+***** ERROR:  Invalid operand
+02A4 34 02                 0254 	MOV	[BUFPT],SI
+02A6 0C A0                 0255 	MOV	[CHR],AL
+02A8 8A E8                 0256 	RET
+***** ERROR:  Invalid operand
+02AA 24 01                 0257 
+***** ERROR:  Invalid operand
+02AC 59                    0258 
+02AD E9 32 05              0259 MROPS:
+02B0                       0260 
+***** ERROR:  Illegal character in label or opcode
+02B0                       0261 ; Get two operands and check for certain types, according to flag byte
+***** ERROR:  Illegal character in label or opcode
+02B0 8A C7                 0262 ; in CL. OP code in CH. Returns only if immediate operation.
+***** ERROR:  Invalid operand
+02B2 22 C1                 0263 
+02B4 0A C5                 0264 	PUSH	CX		;Save type flags
+02B6 E8 BC 04              0265 	CALL	GETOP
+***** ERROR:  Invalid operand
+02B9 02 C0                 0266 	PUSH	DX		;Save first operand
+02BB 02 C0                 0267 	CALL	GETOP2
+***** ERROR:  Invalid operand
+02BD 0A C2                 0268 	POP	BX		;First op in BX, second op in DX
+02BF 59                    0269 	MOV	AL,SREG		;Check for a segment register
+02C0 E9 1F 05              0270 	CMP	AL,BH
+02C3                       0271 	JZ	SEGCHK
+***** ERROR:  Illegal character in label or opcode
+02C3                       0272 	CMP	AL,DH
+***** ERROR:  Illegal character in label or opcode
+02C3 B6 1D                 0273 	JZ	SEGCHK
+***** ERROR:  Invalid operand
+02C5 8A CE                 0274 	MOV	AL,CONST	;Check if the first operand is immediate
+***** ERROR:  Invalid operand
+02C7 E9 49 FF              0275 	MOV	CL,26
+***** ERROR:  Invalid operand
+02CA                       0276 	CMP	AL,BH
+***** ERROR:  Illegal character in label or opcode
+02CA                       0277 	JZ	ERROR		;Error if so
+02CA A0 55 13              0278 	POP	CX		;Restore type flags
+***** ERROR:  Invalid operand
+02CD B1 15                 0279 	CMP	AL,DH		;If second operand is immediate, then done
+***** ERROR:  Invalid operand
+02CF                       0280 	JZ	RET
+***** ERROR:  Illegal character in label or opcode
+02CF                       0281 	MOV	AL,UNDEFID	;Check for memory reference
+***** ERROR:  Illegal character in label or opcode
+02CF                       0282 	CMP	AL,BH
+***** ERROR:  Illegal character in label or opcode
+02CF                       0283 	JZ	STORE		;Is destination memory?
+***** ERROR:  Illegal character in label or opcode
+02CF                       0284 	CMP	AL,DH
+02CF                       0285 	JZ	LOAD		;Is source memory?
+02CF                       0286 	TEST	CL,1		;Check if register-to-register operation OK
+02CF                       0287 	MOV	CL,27
+02CF                       0288 	JZ	ERROR
+02CF                       0289 	MOV	AL,DH
+02CF                       0290 	CMP	AL,BH		;Registers must be of same length
+02CF                       0291 RR:
+02CF                       0292 	MOV	CL,22
+02CF                       0293 	JNZ	ERROR
+02CF                       0294 RR1:
+02CF                       0295 	AND	AL,1		;Get register length (1=16 bits)
+02CF                       0296 	OR	AL,CH		;Or in to OP code
+02CF                       0297 	CALL	PUT		;And write it
+02CF                       0298 	POP	CX		;Dump return address
+02CF                       0299 	MOV	AL,BL
+02CF                       0300 	ADD	AL,AL		;Rotate register number into middle position
+02CF                       0301 	ADD	AL,AL
+02CF                       0302 	ADD	AL,AL
+02CF                       0303 	OR	AL,0C0H		;Set register-to-register mode
+02CF                       0304 	OR	AL,DL		;Combine with other register number
+02CF                       0305 	JMP	PUT
+***** ERROR:  Illegal character in label or opcode
+02CF E8 5C 01              0306 
+***** ERROR:  Invalid operand
+02D2                       0307 SEGCHK:
+02D2 3C 5B                 0308 ;Come here if at least one operand is a segment register
+02D4 74 00                 0309 	POP	CX		;Restore flags
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+02D6 74 2B                 0310 	TEST	CL,8		;Check if segment register OK
+***** ERROR:  Invalid operand
+02D8 74 00                 0311 	MOV	CL,22
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+02DA 74 00                 0312 	JZ	ERR1
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+02DC 74 00                 0313 	MOV	CX,8E03H	;Segment register move OP code
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+02DE 32 C0                 0314 	MOV	AL,UNDEFID
+02E0                       0315 	CMP	AL,DH		;Check if source is memory
+***** ERROR:  Illegal character in label or opcode
+02E0 E8 2B 00              0316 	JZ	LOAD
+***** ERROR:  Invalid operand
+02E3 A3 00 00              0317 	CMP	AL,BH		;Check if destination is memory
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+02E6 A3 01 13              0318 	JZ	STORE
+***** ERROR:  Invalid operand
+02E9 B6 01                 0319 	MOV	AL,XREG
+***** ERROR:  Invalid operand
+02EB                       0320 	SUB	AL,DH		;Check if source is 16-bit register
+***** ERROR:  Invalid operand
+02EB 52                    0321 	JZ	RR		;If so, AL must be zero
+***** ERROR:  Invalid operand
+02EC 5A                    0322 	MOV	CH,8CH		;Change direction
+***** ERROR:  Invalid operand
+02ED                       0323 	XCHG	DX,BX		;Flip which operand is first and second
+***** ERROR:  Invalid operand
+02ED E8 3E 01              0324 	MOV	AL,XREG
+***** ERROR:  Invalid operand
+02F0 E8 1B 00              0325 	SUB	AL,DH		;Let RR perform finish the test
+***** ERROR:  Invalid operand
+02F3 3C 5D                 0326 	JP	RR
+***** ERROR:  Invalid operand
+02F5 75 D0                 0327 
+***** ERROR:  Invalid operand
+02F7 8B 1E 00 00           0328 STORE:
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+02FB 8B 1E 03 13           0329 	TEST	CL,004H		;Check if storing is OK
+***** ERROR:  Invalid operand
+02FF 8A D5                 0330 	JNZ	STERR
+***** ERROR:  Invalid operand
+0301 8A C6                 0331 	XCHG	DX,BX		;If so, flip operands
+***** ERROR:  Invalid operand
+0303                       0332 	AND	CH,0FDH		;   and zero direction bit
+***** ERROR:  Illegal character in label or opcode
+0303 3A 16 FE 12           0333 LOAD:
+0307 B1 27                 0334 	MOV	DH,25
+***** ERROR:  Invalid operand
+0309 E8 22 01              0335 	CMP	AL,BH		;Check if memory-to-memory
+***** ERROR:  Invalid operand
+030C 74 C1                 0336 	JZ	MRERR
+***** ERROR:  Invalid operand
+030E                       0337 	MOV	AL,BH
+***** ERROR:  Illegal character in label or opcode
+030E                       0338 	CMP	AL,REG		;Check if 8-bit operation
+***** ERROR:  Illegal character in label or opcode
+030E                       0339 	JNZ	XRG
+***** ERROR:  Illegal character in label or opcode
+030E                       0340 	MOV	DH,22
+***** ERROR:  Illegal character in label or opcode
+030E                       0341 	TEST	CL,1		;See if 8-bit operation is OK
+030E                       0342 	JZ	MRERR
+030E                       0343 XRG:
+030E                       0344 	MOV	AL,DL
+030E                       0345 	SUB	AL,6		;Check for R/M mode 6 and register 0
+030E                       0346 	OR	AL,BL		;   meaning direct load/store of accumulator
+030E                       0347 	JNZ	NOTAC
+***** ERROR:  Illegal character in label or opcode
+030E 8A E0                 0348 	TEST	CL,8		;See if direct load/store of accumulator
+0310 C7 06 03 13 00 00     0349 	JZ	NOTAC		;   means anything in this case
+***** ERROR:  Invalid operand
+0316 E8 3B 00              0350 ; Process direct load/store of accumulator
+***** ERROR:  Invalid operand
+0319 8A C4                 0351 	MOV	AL,CH
+***** ERROR:  Invalid operand
+031B A8 10                 0352 	AND	AL,2		;Preserve direction bit only
+031D D0 D0                 0353 	XOR	AL,2		;   but flip it
+031F 74 29                 0354 	OR	AL,0A0H		;Combine with OP code
+0321 F5                    0355 	MOV	CH,AL
+***** ERROR:  Invalid operand
+0322 D0 D0                 0356 	MOV	AL,BH		;Check byte/word operation
+0324 D0 D5                 0357 	AND	AL,1
+***** ERROR:  Invalid operand
+0326 D0 D5                 0358 	OR	AL,CH
+0328                       0359 	POP	CX		;Dump return address
+***** ERROR:  Illegal character in label or opcode
+0328 80 CD 80              0360 	JMP	PUTADD		;Write the address
+032B F7 06 03 13 FF FF     0361 
+***** ERROR:  Invalid operand
+0331 8B 1E 00 00           0362 NOTAC:
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+0335 98                    0363 	MOV	AL,BH
+0336 3B C3                 0364 	AND	AL,1		;Get byte/word bit
+0338 75 6B                 0365 	AND	AL,CL		;But don't use it in word-only operations
+***** ERROR:  Value out of range (forward)
+033A 80 E5 7F              0366 	OR	AL,CH		;Combine with OP code
+033D 80 CD 40              0367 	CALL	PUT
+0340 0B DB                 0368 	MOV	AL,BL
+***** ERROR:  Invalid operand
+0342 80 E5 07              0369 	ADD	AL,AL		;Rotate to middle position
+0345 82 FD 06              0370 	ADD	AL,AL
+0348 75 5B                 0371 	ADD	AL,AL
+***** ERROR:  Invalid operand
+***** ERROR:  Value out of range (forward)
+034A                       0372 	OR	AL,DL		;Combine register field
+***** ERROR:  Invalid operand
+034A                       0373 	POP	CX		;Dump return address
+***** ERROR:  Illegal character in label or opcode
+034A B5 06                 0374 	JMP	PUTADD		;Write the address
+034C 73 57                 0375 
+***** ERROR:  Value out of range (forward)
+034E D0 D0                 0376 STERR:
+0350 72 D6                 0377 	MOV	DH,29
+***** ERROR:  Invalid operand
+0352 EB D4                 0378 MRERR:
+***** ERROR:  Invalid operand
+0354                       0379 	MOV	CL,DH
+***** ERROR:  Illegal character in label or opcode
+0354                       0380 
+0354                       0381 ERR1:	JMP	ERROR
+0354 B5 FF                 0382 
+0356 8B FA                 0383 GETOP2:
+***** ERROR:  Invalid operand
+0358 3C 2B                 0384 ;Get the second operand: look for a comma and drop into GETOP
+***** ERROR:  Invalid operand
+035A 3C 2D                 0385 	MOV	AL,[SYM]
+***** ERROR:  Invalid operand
+035C B1 2B                 0386 	CMP	AL,','
+***** ERROR:  Invalid operand
+035E 51                    0387 	MOV	CL,21
+***** ERROR:  Invalid operand
+035F EB 00                 0388 	JNZ	ERR1
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+0361 8A C8                 0389 
+***** ERROR:  Invalid operand
+0363 51                    0390 
+***** ERROR:  Invalid operand
+0364 E8 C7 00              0391 GETOP:
+***** ERROR:  Invalid operand
+0367 E8 1A 00              0392 
+***** ERROR:  Invalid operand
+036A 5B                    0393 ; Get one operand. Operand may be a memory reference in brackets, a register,
+036B 87 DA                 0394 ; or a constant. If a flag (such as "B" for byte operation) is encountered,
+***** ERROR:  Invalid operand
+036D 0A C0                 0395 ; it is noted and processing continues to find the operand.
+036F 74 00                 0396 ;
+***** ERROR:  Undefined label
+0371 82 F9 2D              0397 ; On exit, AL (=DH) has the type of operand. Other information depends
+0374 75 00                 0398 ; on the actual operand:
+***** ERROR:  Invalid operand
+0376                       0399 ;
+***** ERROR:  Illegal character in label or opcode
+0376 03 D3                 0400 ; AL=DH=0  Memory Reference.  DL has the address mode properly prepared in
+***** ERROR:  Invalid operand
+0378 A0 55 13              0401 ; the 8086 R/M format (middle bits zero). The constant part of the address
+***** ERROR:  Invalid operand
+037B 74 00                 0402 ; is in ADDR. If an undefined label needs to be added to this, a pointer to
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+037D 74 00                 0403 ; its information fields is in ALABEL, otherwise ALABEL is zero.
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+037F                       0404 ;
+***** ERROR:  Invalid operand
+037F 82 F9 2D              0405 ; AL=DH=1  Value. The constant part is in DATA. If an undefined label needs
+***** ERROR:  Invalid operand
+0382                       0406 ; to be added to this, a pointer to its information fields is in DLABEL,
+***** ERROR:  Illegal character in label or opcode
+0382 B1 05                 0407 ; otherwise DLABEL is zero. "$" and "RET" are in this class.
+***** ERROR:  Invalid operand
+0384                       0408 ;
+***** ERROR:  Illegal character in label or opcode
+0384                       0409 ; AL=DH=2  8-bit Register. DL has the register number.
+***** ERROR:  Illegal character in label or opcode
+0384 E8 2C 00              0410 ;
+***** ERROR:  Invalid operand
+0387 52                    0411 ; AL=DH=3  16-bit Register. DL has the register number.
+0388 50                    0412 ;
+0389 E8 A2 00              0413 ; AL=DH=4  Segment Register. DL has the register number.
+***** ERROR:  Invalid operand
+038C 3C 2A                 0414 
+***** ERROR:  Invalid operand
+038E 3C 2F                 0415 	CALL	GETSYM
+***** ERROR:  Invalid operand
+0390                       0416 GETOP1:
+***** ERROR:  Illegal character in label or opcode
+0390 0A C9                 0417 ;Enter here if we don't need a GETSYM first
+0392 74 EE                 0418 	CMP	AL,'['		;Memory reference?
+***** ERROR:  Invalid operand
+0394 E8 97 00              0419 	JZ	MEM
+0397 E8 19 00              0420 	CMP	AL,5		;Flag ("B", "W", etc.)?
+***** ERROR:  Invalid operand
+039A 74 E6                 0421 	JZ	FLG
+***** ERROR:  Invalid operand
+039C 5D                    0422 	CMP	AL,REG		;8-Bit register?
+039D 95                    0423 	JZ	NREG
+039E 82 F9 2F              0424 	CMP	AL,XREG		;16-Bit register?
+03A1 75 06                 0425 	JZ	NREG
+***** ERROR:  Invalid operand
+03A3 B1 29                 0426 	CMP	AL,SREG		;Segment register?
+***** ERROR:  Invalid operand
+03A5 8B DA                 0427 	JZ	NREG
+***** ERROR:  Invalid operand
+03A7 F7 F3                 0428 VAL:				;Must be immediate
+***** ERROR:  Invalid operand
+03A9                       0429 	XOR	AL,AL		;No addressing modes allowed
+***** ERROR:  Illegal character in label or opcode
+03A9 F7 E2                 0430 VAL1:
+***** ERROR:  Invalid operand
+03AB 8B D0                 0431 	CALL	GETVAL
+03AD 95                    0432 	MOV	AX,[CON]	;Defined part
+03AE B0 FF                 0433 	MOV	[DATA],AX
+03B0 EB 00                 0434 	MOV	AX,[UNDEF]	;Undefined part
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+03B2 5A                    0435 	MOV	[DLABEL],AX
+***** ERROR:  Invalid operand
+03B3                       0436 	MOV	DL,CH
+***** ERROR:  Invalid operand
+03B3                       0437 	MOV	DH,CONST
+***** ERROR:  Illegal character in label or opcode
+03B3 A0 55 13              0438 	MOV	AL,DH
+***** ERROR:  Invalid operand
+03B6 74 ED                 0439 	RET
+***** ERROR:  Invalid operand
+***** ERROR:  Value out of range (forward)
+03B8 74 36                 0440 NREG:
+***** ERROR:  Invalid operand
+03BA 74 2C                 0441 	PUSH	DX
+***** ERROR:  Invalid operand
+03BC 74 3D                 0442 	CALL	GETSYM
+***** ERROR:  Invalid operand
+03BE 74 3B                 0443 	POP	DX
+***** ERROR:  Invalid operand
+03C0 B1 14                 0444 	MOV	AL,DH
+***** ERROR:  Invalid operand
+03C2 F6 C4 01              0445 	RET
+03C5 B1 01                 0446 MEM:
+***** ERROR:  Invalid operand
+03C7 8A C2                 0447 	CALL	GETSYM
+***** ERROR:  Invalid operand
+03C9 2C 03                 0448 	MOV	AL,1
+03CB 74 16                 0449 	CALL	GETVAL
+***** ERROR:  Invalid operand
+03CD 74 11                 0450 	MOV	AL,[SYM]
+***** ERROR:  Invalid operand
+03CF B1 04                 0451 	CMP	AL,']'
+***** ERROR:  Invalid operand
+03D1 FE C8                 0452 	MOV	CL,24
+03D3 74 03                 0453 	JNZ	ERR1
+***** ERROR:  Invalid operand
+03D5 E9 3B FE              0454 	CALL	GETSYM
+***** ERROR:  Invalid operand
+03D8                       0455 	MOV	BX,[CON]
+***** ERROR:  Illegal character in label or opcode
+03D8 80 CC 20              0456 	MOV	[ADDR],BX
+03DB                       0457 	MOV	BX,[UNDEF]
+***** ERROR:  Illegal character in label or opcode
+03DB F6 C4 10              0458 	MOV	[ALABEL],BX
+03DE 75 F5                 0459 	MOV	DL,CH
+***** ERROR:  Invalid operand
+03E0                       0460 	MOV	DH,UNDEFID
+***** ERROR:  Invalid operand
+03E0                       0461 	MOV	AL,DH
+***** ERROR:  Illegal character in label or opcode
+03E0 80 CC 40              0462 	RET
+03E3                       0463 FLG:
+***** ERROR:  Illegal character in label or opcode
+03E3 F6 C4 80              0464 	CMP	DL,[MAXFLG]	;Invalid flag for this operation?
+03E6 75 ED                 0465 	MOV	CL,27H
+***** ERROR:  Invalid operand
+03E8                       0466 	JG	ERR1
+***** ERROR:  Invalid operand
+03E8                       0467 	CALL	GETSYM
+***** ERROR:  Illegal character in label or opcode
+03E8 E8 43 00              0468 	CMP	AL,','
+03EB E8 66 FF              0469 	JZ	GETOP
+***** ERROR:  Invalid operand
+03EE B1 14                 0470 	JP	GETOP1
+***** ERROR:  Invalid operand
+03F0                       0471 
+***** ERROR:  Invalid operand
+03F0                       0472 
+***** ERROR:  Illegal character in label or opcode
+03F0 B1 06                 0473 GETVAL:
+***** ERROR:  Invalid operand
+03F2 75 04                 0474 
+***** ERROR:  Invalid operand
+03F4 89 1E 03 13           0475 ; Expression analyzer. On entry, if AL=0 then do not allow base or index
+***** ERROR:  Invalid operand
+03F8                       0476 ; registers. If AL=1, we are analyzing a memory reference, so allow base
+***** ERROR:  Illegal character in label or opcode
+03F8 E9 18 FE              0477 ; and index registers, and compute addressing mode when done. The constant
+***** ERROR:  Invalid operand
+03FB                       0478 ; part of the expression will be found in CON. If an undefined label is to
+***** ERROR:  Illegal character in label or opcode
+03FB 8A E8                 0479 ; be added to this, a pointer to its information fields will be found in
+***** ERROR:  Invalid operand
+03FD 3A C5                 0480 ; UNDEF.
+***** ERROR:  Invalid operand
+03FF 8A D0                 0481 
+***** ERROR:  Invalid operand
+0401 75 00                 0482 	MOV	AH,AL		;Flag is kept in AH
+***** ERROR:  Invalid operand
+0403                       0483 	MOV	[UNDEF],0
+***** ERROR:  Illegal character in label or opcode
+0403 E8 1E 00              0484 	MOV	AL,[SYM]
+***** ERROR:  Invalid operand
+0406 F6 C4 02              0485 	CALL	EXPRESSION
+***** ERROR:  Invalid operand
+0409 F6 C4 04              0486 	MOV	[CON],DX
+***** ERROR:  Invalid operand
+040C 75 EA                 0487 	MOV	AL,AH
+***** ERROR:  Invalid operand
+040E 8A C2                 0488 	MOV	CH,0		;Initial mode
+***** ERROR:  Invalid operand
+0410 B1 27                 0489 	TEST	AL,10H		;Test INDEX bit
+***** ERROR:  Invalid operand
+0412 E8 60 03              0490 	RCL	AL		;BASE bit (zero flag not affected)
+***** ERROR:  Invalid operand
+0415 0A C0                 0491 	JZ	NOIND		;Jump if not indexed, with BASE bit in carry
+***** ERROR:  Invalid operand
+0417 8A C6                 0492 	CMC
+***** ERROR:  Invalid operand
+0419                       0493 	RCL	CH		;Rotate in BASE bit
+***** ERROR:  Illegal character in label or opcode
+0419 A0 00 00              0494 	RCL	AL		;BP bit
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+041C E8 05 00              0495 	RCL	CH
+***** ERROR:  Invalid operand
+041F                       0496 	RCL	AL		;DI bit
+***** ERROR:  Illegal character in label or opcode
+041F                       0497 	RCL	CH		;The low 3 bits now have indexing mode
+***** ERROR:  Illegal character in label or opcode
+041F E8 F3 FD              0498 MODE:
+***** ERROR:  Invalid operand
+0422 75 D4                 0499 	OR	CH,080H		;If undefined label, force 16-bit displacement
+***** ERROR:  Invalid operand
+0424                       0500 	TEST	[UNDEF],-1
+***** ERROR:  Illegal character in label or opcode
+0424                       0501 	JNZ	RET
+***** ERROR:  Illegal character in label or opcode
+0424 E8 EE FD              0502 	MOV	BX,[CON]
+***** ERROR:  Invalid operand
+0427 75 7C                 0503 	MOV	AL,BL
+***** ERROR:  Invalid operand
+***** ERROR:  Value out of range (forward)
+0429 3A C5                 0504 	CBW			;Extend sign
+***** ERROR:  Invalid operand
+042B 5B                    0505 	CMP	AX,BX		;Is it a signed 8-bit number?
+042C B0 FF                 0506 	JNZ	RET		;If not, use 16-bit displacement
+042E                       0507 	AND	CH,07FH		;Reset 16-bit displacement
+***** ERROR:  Invalid operand
+042E                       0508 	OR	CH,040H		;Set 8-bit displacement
+***** ERROR:  Illegal character in label or opcode
+042E                       0509 	OR	BX,BX
+***** ERROR:  Illegal character in label or opcode
+042E                       0510 	JNZ	RET		;Use it if not zero displacement
+***** ERROR:  Illegal character in label or opcode
+042E                       0511 	AND	CH,7		;Specify no displacement
+042E                       0512 	CMP	CH,6		;Check for BP+0 addressing mode
+042E                       0513 	JNZ	RET
+042E                       0514 	OR	CH,040H		;If BP+0, use 8-bit displacement
+042E                       0515 	RET
+042E                       0516 
+042E                       0517 NOIND:
+042E                       0518 	MOV	CH,6		;Try direct address mode
+042E                       0519 	JNC	RET		;If no base register, that's right
+042E                       0520 	RCL	AL		;Check BP bit
+042E                       0521 	JC	MODE
+042E                       0522 	INC	CH		;If not, must be BX
+042E                       0523 	JP	MODE
+042E                       0524 
+042E                       0525 EXPRESSION:
+042E                       0526 ;Analyze arbitrary expression. Flag byte in AH.
+042E                       0527 ;On exit, AL has type byte: 0=register or undefined label
+042E                       0528 	MOV	CH,-1		;Initial type
+***** ERROR:  Illegal character in label or opcode
+042E 50                    0529 	MOV	DI,DX
+042F E8 17 00              0530 	XOR	DX,DX		;Initial value
+***** ERROR:  Invalid operand
+0432 A0 55 13              0531 	CMP	AL,'+'
+***** ERROR:  Invalid operand
+0435                       0532 	JZ	PLSMNS
+***** ERROR:  Illegal character in label or opcode
+0435                       0533 	CMP	AL,'-'
+***** ERROR:  Illegal character in label or opcode
+0435 A0 00 00              0534 	JZ	PLSMNS
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+0438 3C 20                 0535 	MOV	CL,'+'
+***** ERROR:  Invalid operand
+043A 3C 09                 0536 	PUSH	DX
+***** ERROR:  Invalid operand
+043C                       0537 	PUSH	CX
+***** ERROR:  Illegal character in label or opcode
+043C E8 D6 FD              0538 	MOV	DX,DI
+***** ERROR:  Invalid operand
+043F                       0539 	JP	OPERATE
+***** ERROR:  Illegal character in label or opcode
+043F                       0540 PLSMNS:
+***** ERROR:  Illegal character in label or opcode
+043F 8B 16 00 00           0541 	MOV	CL,AL
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+0443 A2 55 13              0542 	PUSH	DX
+***** ERROR:  Invalid operand
+0446 E9 CC FD              0543 	PUSH	CX
+***** ERROR:  Invalid operand
+0449                       0544 	OR	AH,4		;Flag that a sign was found
+***** ERROR:  Illegal character in label or opcode
+0449 E8 E9 FF              0545 	CALL	GETSYM
+***** ERROR:  Invalid operand
+044C 74 F1                 0546 OPERATE:
+***** ERROR:  Invalid operand
+044E 0C 20                 0547 	CALL	TERM
+***** ERROR:  Invalid operand
+0450 73 00                 0548 	POP	CX		;Recover operator
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+0452 72 03                 0549 	POP	BX		;Recover current value
+***** ERROR:  Invalid operand
+0454 3C 3A                 0550 	XCHG	DX,BX
+***** ERROR:  Invalid operand
+0456 3C 30                 0551 	AND	CH,AL
+***** ERROR:  Invalid operand
+0458 BB 55 13              0552 	OR	AL,AL		;Is it register or undefined label?
+***** ERROR:  Invalid operand
+045B E8 00 00              0553 	JZ	NOCON		;If so, then no constant part
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+045E 8A 07                 0554 	CMP	CL,"-"		;Subtract it?
+***** ERROR:  Invalid operand
+0460 BB 00 00              0555 	JNZ	ADD
+***** ERROR:  Invalid operand
+0463 75 03                 0556 	NEG	BX
+***** ERROR:  Invalid operand
+0465 FE C1                 0557 ADD:
+***** ERROR:  Invalid operand
+0467                       0558 	ADD	DX,BX
+***** ERROR:  Illegal character in label or opcode
+0467 8B 36 00 00           0559 NEXTERM:
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+046B FF 06 00 00           0560 	MOV	AL,[SYM]
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+046F 72 03                 0561 	CMP	AL,'+'
+***** ERROR:  Invalid operand
+0471 2C 30                 0562 	JZ	PLSMNS
+***** ERROR:  Invalid operand
+0473 D1 E3                 0563 	CMP	AL,'-'
+***** ERROR:  Invalid operand
+0475 03 DA                 0564 	JZ	PLSMNS
+***** ERROR:  Invalid operand
+0477 8A D0                 0565 	MOV	AL,CH
+***** ERROR:  Invalid operand
+0479 03 DA                 0566 	RET
+***** ERROR:  Invalid operand
+047B 75 EA                 0567 NOCON:
+***** ERROR:  Invalid operand
+047D                       0568 	CMP	CL,"-"
+***** ERROR:  Invalid operand
+047D                       0569 	JNZ	NEXTERM
+***** ERROR:  Illegal character in label or opcode
+047D BA 05 13              0570 BADOP:
+***** ERROR:  Invalid operand
+0480                       0571 	MOV	CL,5
+***** ERROR:  Illegal character in label or opcode
+0480 8B F2                 0572 	JMP	ERROR
+***** ERROR:  Invalid operand
+0482 42                    0573 
+***** ERROR:  Invalid operand
+0483 3C 0A                 0574 TERM:
+***** ERROR:  Invalid operand
+0485 3C 37                 0575 	CALL	FACTOR
+***** ERROR:  Invalid operand
+0487 2C 27                 0576 MULOP:
+***** ERROR:  Invalid operand
+0489 D1 E3                 0577 	PUSH	DX		;Save value
+***** ERROR:  Invalid operand
+048B D1 E3                 0578 	PUSH	AX		;Save type
+***** ERROR:  Invalid operand
+048D 02 D8                 0579 	CALL	GETSYM
+***** ERROR:  Invalid operand
+048F 75 EF                 0580 	POP	CX
+***** ERROR:  Invalid operand
+0491                       0581 	CMP	AL,"*"
+***** ERROR:  Invalid operand
+0491 E9 7F FD              0582 	JZ	GETFACT
+***** ERROR:  Invalid operand
+0494                       0583 	CMP	AL,"/"
+***** ERROR:  Illegal character in label or opcode
+0494 E8 9E FF              0584 	JNZ	ENDTERM
+***** ERROR:  Invalid operand
+0497 F9                    0585 GETFACT:
+***** ERROR:  Invalid operand
+0498 3C 3B                 0586 	OR	CL,CL		;Can we operate on this type?
+***** ERROR:  Invalid operand
+049A 74 09                 0587 	JZ	BADOP
+***** ERROR:  Invalid operand
+***** ERROR:  Value out of range (forward)
+049C 0C 20                 0588 	PUSH	AX		;Save operator
+***** ERROR:  Invalid operand
+049E 72 F1                 0589 	CALL	GETSYM		;Get past operator
+***** ERROR:  Invalid operand
+04A0 73 EF                 0590 	CALL	FACTOR
+***** ERROR:  Invalid operand
+04A2 BB 05 13              0591 	OR	AL,AL
+***** ERROR:  Invalid operand
+04A5                       0592 	JZ	BADOP
+***** ERROR:  Illegal character in label or opcode
+04A5 88 07                 0593 	POP	CX		;Recover operator
+***** ERROR:  Invalid operand
+04A7 43                    0594 	POP	BP		;And current value
+***** ERROR:  Invalid operand
+04A8 3C 30                 0595 	XCHG	AX,BP		;Save AH in BP
+***** ERROR:  Invalid operand
+04AA 0C 20                 0596 	CMP	CL,"/"		;Do we divide?
+***** ERROR:  Invalid operand
+04AC 73 00                 0597 	JNZ	DOMUL
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+04AE 72 F5                 0598 	OR	DX,DX		;Dividing by zero?
+***** ERROR:  Invalid operand
+04B0 73 F3                 0599 	MOV	CL,29H
+***** ERROR:  Invalid operand
+04B2 8A C8                 0600 	JZ	ERR2
+***** ERROR:  Invalid operand
+04B4 A2 00 00              0601 	MOV	BX,DX
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+04B7 8A C1                 0602 	XOR	DX,DX		;Make 32-bit dividend
+***** ERROR:  Invalid operand
+04B9                       0603 	DIV	AX,BX
+***** ERROR:  Illegal character in label or opcode
+04B9                       0604 	JMPS	NEXFACT
+***** ERROR:  Illegal character in label or opcode
+04B9 E8 00 00              0605 DOMUL:
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+04BC FE C8                 0606 	MUL	AX,DX
+***** ERROR:  Invalid operand
+04BE A0 05 13              0607 NEXFACT:
+***** ERROR:  Invalid operand
+04C1 BF DD 04              0608 	MOV	DX,AX		;Result in DX
+***** ERROR:  Invalid operand
+04C4 F2                    0609 	XCHG	AX,BP		;Restore flags to AH
+***** ERROR:  Invalid operand
+04C5 74 0C                 0610 	MOV	AL,-1		;Indicate a number
+04C7 32 C0                 0611 	JMPS	MULOP
+***** ERROR:  Invalid operand
+04C9                       0612 ENDTERM:
+***** ERROR:  Illegal character in label or opcode
+04C9 FE C8                 0613 	POP	DX
+***** ERROR:  Invalid operand
+04CB 75 00                 0614 	MOV	AL,CL
+***** ERROR:  Invalid operand
+04CD                       0615 	RET
+***** ERROR:  Illegal character in label or opcode
+04CD 5B                    0616 
+***** ERROR:  Invalid operand
+04CE 74 00                 0617 FACTOR:
+***** ERROR:  Invalid operand
+04D0                       0618 	MOV	AL,[SYM]
+***** ERROR:  Illegal character in label or opcode
+04D0 A2 55 13              0619 	CMP	AL,CONST
+***** ERROR:  Invalid operand
+04D3                       0620 	JZ	RET
+***** ERROR:  Illegal character in label or opcode
+04D3                       0621 	CMP	AL,UNDEFID
+***** ERROR:  Illegal character in label or opcode
+04D3 8A D1                 0622 	JZ	UVAL
+04D5 86 0E 00 00           0623 	CMP	AL,"("
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+04D9 B1 20                 0624 	JZ	PAREN
+***** ERROR:  Invalid operand
+04DB 74 F3                 0625 	CMP	AL,'"'
+***** ERROR:  Invalid operand
+04DD                       0626 	JZ	STRING
+***** ERROR:  Illegal character in label or opcode
+04DD 74 6C 73 77 62        0627 	CMP	AL,"'"
+***** ERROR:  Invalid operand
+04E2                       0628 	JZ	STRING
+***** ERROR:  Illegal character in label or opcode
+04E2                       0629 	CMP	AL,XREG		;Only 16-bit register may index
+04E2 B2 00                 0630 	MOV	CL,20
+04E4 E8 4E FF              0631 	JNZ	ERR2
+04E7 3C 28                 0632 	TEST	AH,1		;Check to see if indexing is OK
+04E9 75 1C                 0633 	MOV	CL,1
+***** ERROR:  Invalid operand
+04EB E8 27 FD              0634 	JZ	ERR2
+04EE E8 DE FD              0635 	MOV	AL,DL
+04F1 3C 01                 0636 	MOV	CL,3
+04F3 B1 14                 0637 	SUB	AL,3		;Check for BX
+04F5 75 00                 0638 	JZ	BXJ
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+04F7 B1 1E                 0639 	SUB	AL,2		;Check for BP
+***** ERROR:  Invalid operand
+04F9 8B 16 00 00           0640 	JZ	BPJ
+***** ERROR:  Undefined label
+04FD 83 FA 07              0641 	DEC	AL		;Check for SI
+0500 B1 1F                 0642 	MOV	CL,4
+***** ERROR:  Invalid operand
+0502 A0 55 13              0643 	JZ	SIJ
+***** ERROR:  Invalid operand
+0505 B1 18                 0644 	DEC	AL		;Check for DI
+***** ERROR:  Invalid operand
+0507                       0645 	JZ	DIJ
+***** ERROR:  Illegal character in label or opcode
+0507 B6 06                 0646 	MOV	CL,2		;Invalid base/index register
+***** ERROR:  Invalid operand
+0509                       0647 ERR2:	JMP	ERROR
+***** ERROR:  Invalid operand
+0509                       0648 
+***** ERROR:  Illegal character in label or opcode
+0509 BB 05 13              0649 DIJ:
+***** ERROR:  Invalid operand
+050C 74 D4                 0650 	OR	AH,20H		;Flag seeing index register DI
+***** ERROR:  Invalid operand
+050E 43                    0651 SIJ:
+***** ERROR:  Invalid operand
+050F BB 3C 05              0652 	TEST	AH,10H		;Check if already seen index register
+***** ERROR:  Invalid operand
+0512 B2 00                 0653 	JNZ	ERR2
+***** ERROR:  Invalid operand
+0514 74 00                 0654 	OR	AH,10H		;Flag seeing index register
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+0516 3C 6C                 0655 	RET
+***** ERROR:  Invalid operand
+0518 B2 04                 0656 
+***** ERROR:  Invalid operand
+051A 74 00                 0657 BPJ:
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+051C B2 00                 0658 	OR	AH,40H		;Flag seeing base register BP
+***** ERROR:  Invalid operand
+051E 3C 73                 0659 BXJ:
+***** ERROR:  Invalid operand
+0520 B6 03                 0660 	TEST	AH,80H		;Check if already seen base register
+***** ERROR:  Invalid operand
+0522 74 08                 0661 	JNZ	ERR2
+***** ERROR:  Invalid operand
+0524 75 7F                 0662 	OR	AH,80H		;Flag seeing base register
+***** ERROR:  Invalid operand
+0526 8A C1                 0663 	RET
+***** ERROR:  Invalid operand
+0528 74 7B                 0664 
+***** ERROR:  Invalid operand
+052A 3C 64                 0665 PAREN:
+***** ERROR:  Invalid operand
+052C                       0666 	CALL	GETSYM		;Eat the "("
+***** ERROR:  Illegal character in label or opcode
+052C B2 04                 0667 	CALL	EXPRESSION
+***** ERROR:  Invalid operand
+052E 3C 73                 0668 	CMP	B,[SYM],")"	;Better have closing paren
+***** ERROR:  Invalid operand
+0530 FE C2                 0669 	MOV	CL,20
+***** ERROR:  Invalid operand
+0532                       0670 	JNZ	ERR30
+***** ERROR:  Invalid operand
+0532 8A C1                 0671 	RET
+***** ERROR:  Invalid operand
+0534 FC                    0672 
+***** ERROR:  Invalid operand
+0535 F2                    0673 UVAL:
+***** ERROR:  Invalid operand
+0536 8B DF                 0674 	MOV	CL,6
+***** ERROR:  Invalid operand
+0538 8A C1                 0675 	TEST	AH,8		;Check if undefined label has been seen
+***** ERROR:  Invalid operand
+053A 8A D0                 0676 	JNZ	ERR30
+***** ERROR:  Invalid operand
+053C                       0677 	OR	AH,8		;Flag seeing undefined label
+***** ERROR:  Invalid operand
+053C 62 64 63 61           0678 	MOV	[UNDEF],BX
+***** ERROR:  Invalid operand
+0540 64 73 63 65           0679 	RET
+***** ERROR:  Invalid operand
+0544                       0680 
+***** ERROR:  Illegal character in label or opcode
+0544 8A 2F                 0681 ERR30:	JMP	ERROR
+***** ERROR:  Invalid operand
+0546 BA 05 13              0682 
+***** ERROR:  Invalid operand
+0549 74 5A                 0683 STRING:
+***** ERROR:  Invalid operand
+054B D0 C0                 0684 	MOV	CH,AL
+054D 8A C8                 0685 	MOV	AL,[CHR]
+***** ERROR:  Invalid operand
+054F 8A 07                 0686 	CMP	AL,CH
+***** ERROR:  Invalid operand
+0551 D0 C0                 0687 	MOV	CL,35
+***** ERROR:  Invalid operand
+0553 73 00                 0688 	MOV	DL,AL
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+0555 FE C5                 0689 	MOV	DH,0
+***** ERROR:  Invalid operand
+0557 8A D5                 0690 	JNZ	L0003
+***** ERROR:  Invalid operand
+0559 03 DA                 0691 	CALL	ZERLEN
+***** ERROR:  Invalid operand
+055B 43                    0692 L0003:
+***** ERROR:  Invalid operand
+055C 0A C6                 0693 	CALL	GETCHR
+***** ERROR:  Invalid operand
+055E 74 45                 0694 	MOV	CL,37
+***** ERROR:  Invalid operand
+0560 EB E2                 0695 	TEST	AH,2
+***** ERROR:  Invalid operand
+0562                       0696 	JZ	ERR30
+***** ERROR:  Illegal character in label or opcode
+0562 8A C5                 0697 	TEST	AH,4
+***** ERROR:  Invalid operand
+0564 75 27                 0698 	MOV	CL,38
+***** ERROR:  Invalid operand
+0566 80 0F 80              0699 	JNZ	ERR30
+***** ERROR:  Invalid operand
+0569                       0700 STRGDAT:
+***** ERROR:  Illegal character in label or opcode
+0569 8B F2                 0701 	MOV	AL,DL
+***** ERROR:  Invalid operand
+056B 3A 07                 0702 	CMP	AL,EOL
+***** ERROR:  Invalid operand
+056D 4B                    0703 	MOV	CL,39
+***** ERROR:  Invalid operand
+056E FE CD                 0704 	JZ	ERR30
+***** ERROR:  Invalid operand
+0570 8B 16 63 13           0705 	CALL	PUT
+***** ERROR:  Invalid operand
+0574 22 C6                 0706 	MOV	AL,[DATSIZ]
+***** ERROR:  Invalid operand
+0576 74 05                 0707 	OR	AL,AL
+***** ERROR:  Invalid operand
+0578 2B DA                 0708 	JNZ	BYTSIZ
+***** ERROR:  Invalid operand
+057A 98                    0709 	MOV	AL,DH
+***** ERROR:  Invalid operand
+057B B0 01                 0710 	CALL	PUT
+***** ERROR:  Invalid operand
+057D                       0711 BYTSIZ:
+***** ERROR:  Illegal character in label or opcode
+057D 8B 1E 00 00           0712 	MOV	AL,[CHR]
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+0581 0A C3                 0713 	MOV	DL,AL
+***** ERROR:  Invalid operand
+0583 75 20                 0714 	CALL	GETCHR
+***** ERROR:  Invalid operand
+0585 4B                    0715 	JP	STRGDAT
+***** ERROR:  Invalid operand
+0586 4B                    0716 
+***** ERROR:  Invalid operand
+0587 32 C0                 0717 ZERLEN:
+***** ERROR:  Invalid operand
+0589 89 1E 00 00           0718 	CALL	NEXTCHR
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+058D                       0719 	CMP	AL,CH
+***** ERROR:  Illegal character in label or opcode
+058D                       0720 	JNZ	ERR30
+***** ERROR:  Illegal character in label or opcode
+058D 4B                    0721 	RET
+***** ERROR:  Invalid operand
+058E                       0722 
+***** ERROR:  Illegal character in label or opcode
+058E 8B 1E 00 00           0723 GETCHR:
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+0592 0A C3                 0724 	CALL	NEXTCHR
+***** ERROR:  Invalid operand
+0594 E8 AD FF              0725 	CMP	AL,CH
+***** ERROR:  Invalid operand
+0597 BA 04 00              0726 	JNZ	RET
+***** ERROR:  Invalid operand
+059A 8A 07                 0727 	CALL	NEXTCHR
+***** ERROR:  Invalid operand
+059C 74 07                 0728 	CMP	AL,CH
+***** ERROR:  Invalid operand
+059E 8B 17                 0729 	JZ	RET
+***** ERROR:  Invalid operand
+05A0                       0730 	POP	BX		;Kill return address to STRGDAT loop
+***** ERROR:  Invalid operand
+05A0                       0731 	MOV	AL,-1		;Flag type as constant
+***** ERROR:  Illegal character in label or opcode
+05A0 53                    0732 	RET
+05A1 E8 05 00              0733 
+05A4 5E                    0734 
+***** ERROR:  Invalid operand
+05A5 C3                    0735 GETSYM:
+05A6                       0736 
+***** ERROR:  Illegal character in label or opcode
+05A6                       0737 ; The lexical scanner. Used only in the operand field. Returns with the token
+***** ERROR:  Illegal character in label or opcode
+05A6 E8 00 00              0738 ; in SYM and AL, sometimes with additional info in BX or DX.
+***** ERROR:  Invalid operand
+05A9                       0739 ;
+***** ERROR:  Invalid operand
+05A9                       0740 ; AL=SYM=0  Undefined label. BX has pointer to information fields.
+***** ERROR:  Illegal character in label or opcode
+05A9                       0741 ;
+***** ERROR:  Illegal character in label or opcode
+05A9                       0742 ; AL=SYM=1  Constant (or defined label). DX has value.
+***** ERROR:  Illegal character in label or opcode
+05A9                       0743 ;
+05A9                       0744 ; AL=SYM=2,3,4  8-bit register, 16-bit register, or segment register,
+05A9                       0745 ; respectively. DL has register number.
+05A9                       0746 ;
+05A9                       0747 ; AL=SYM=5  A mode flag (such as "B" for byte operation). Type of flag in DL
+05A9                       0748 ; and also stored in FLAG: -1=no flags, 0=B, 1=W, 2=S, 3=L, 4=T.
+05A9                       0749 ;
+05A9                       0750 ; AL=SYM=6  8087 floating point register, ST(n) or ST. DL has register number.
+05A9                       0751 ;
+05A9                       0752 ; All other values are the ASCII code of the character. Note that this may
+05A9                       0753 ; never be a letter or number.
+05A9                       0754 
+05A9                       0755 	PUSH	AX		;Save AH
+05A9                       0756 	CALL	GETSY
+05A9                       0757 	POP	AX
+05A9                       0758 	MOV	AL,[SYM]
+05A9                       0759 	RET
+***** ERROR:  Illegal character in label or opcode
+05A9 A0 00 00              0760 
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+05AC 8B 1E 56 13           0761 SCANB:
+***** ERROR:  Invalid operand
+05B0 B6 00                 0762 	MOV	AL,[CHR]
+***** ERROR:  Invalid operand
+05B2 89 1E 56 13           0763 SCANT:
+***** ERROR:  Invalid operand
+05B6 8B 1E 00 00           0764 	CMP	AL,' '
+***** ERROR:  Undefined label
+05BA 3B DA                 0765 	JZ	NEXB
+***** ERROR:  Invalid operand
+05BC E9 2D FC              0766 	CMP	AL,9
+***** ERROR:  Invalid operand
+05BF BB 00 00              0767 	JNZ	RET
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+05C2 FE C1                 0768 NEXB:
+***** ERROR:  Invalid operand
+05C4 FC                    0769 	CALL	NEXTCHR
+***** ERROR:  Invalid operand
+05C5 8B FA                 0770 	JP	SCANT
+***** ERROR:  Invalid operand
+05C7 A4                    0771 
+05C8 8B D7                 0772 DOLLAR:
+***** ERROR:  Invalid operand
+05CA B5 04                 0773 	MOV	DX,[OLDPC]
+***** ERROR:  Invalid operand
+05CC                       0774 	MOV	AL,CONST
+***** ERROR:  Illegal character in label or opcode
+05CC 88 0F                 0775 	MOV	[SYM],AL
+05CE 43                    0776 NEXTCHJ:
+***** ERROR:  Invalid operand
+05CF 75 FB                 0777 	JMP	NEXTCHR
+***** ERROR:  Invalid operand
+05D1 88 07                 0778 
+05D3 5A                    0779 GETSY:
+05D4                       0780 	CALL	SCANB
+***** ERROR:  Invalid operand
+05D4                       0781 	CMP	AL,'$'
+***** ERROR:  Illegal character in label or opcode
+05D4 8B F2                 0782 	JZ	DOLLAR
+***** ERROR:  Invalid operand
+05D6 3A 07                 0783 	MOV	[SYM],AL
+***** ERROR:  Invalid operand
+05D8 42                    0784 	OR	AL,20H
+***** ERROR:  Invalid operand
+05D9 9E                    0785 	CMP	AL,'z'+1
+***** ERROR:  Invalid operand
+05DA FE CD                 0786 	JNC	NEXTCHJ
+***** ERROR:  Invalid operand
+05DC                       0787 	CMP	AL,'a'
+***** ERROR:  Invalid operand
+05DC                       0788 	JC	$+5
+***** ERROR:  Illegal character in label or opcode
+05DC BB 00 00              0789 	JMP	LETTER
+***** ERROR:  Invalid operand
+05DF C6 06 00 00 FF        0790 	CMP	AL,'9'+1
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+05E4 A0 00 00              0791 	JNC	NEXTCHJ
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+05E7 72 00                 0792 	CMP	AL,'0'
+***** ERROR:  Invalid operand
+05E9                       0793 	JC	NEXTCHJ
+***** ERROR:  Illegal character in label or opcode
+05E9 E8 A8 FE              0794 	MOV	BX,SYM
+***** ERROR:  Invalid operand
+05EC 3C 3A                 0795 	MOV	B,[BX],CONST
+***** ERROR:  Invalid operand
+05EE E8 24 FC              0796 	CALL	READID
+***** ERROR:  Invalid operand
+05F1                       0797 	DEC	BX
+***** ERROR:  Illegal character in label or opcode
+05F1 0A C0                 0798 	MOV	AL,[BX]
+***** ERROR:  Invalid operand
+05F3 74 B0                 0799 	MOV	CL,7
+***** ERROR:  Invalid operand
+05F5 A0 62 13              0800 	MOV	BX,0
+***** ERROR:  Invalid operand
+05F8 74 03                 0801 	CMP	AL,'h'
+***** ERROR:  Invalid operand
+05FA E8 90 FF              0802 	JNZ	$+5
+***** ERROR:  Invalid operand
+05FD 75 08                 0803 	JMP	HEX
+***** ERROR:  Invalid operand
+05FF C6 07 01              0804 	INC	CL
+***** ERROR:  Invalid operand
+0602 89 17                 0805 	MOV	[IX],ID
+***** ERROR:  Invalid operand
+0604 E9 8D FE              0806 DEC:
+***** ERROR:  Invalid operand
+0607 E9 09 FC              0807 	MOV	SI,[IX]
+***** ERROR:  Invalid operand
+060A                       0808 	MOV	AL,[SI]
+***** ERROR:  Illegal character in label or opcode
+060A C6 06 FE 12 01        0809 	INC	[IX]
+060F 8B 1E FA 12           0810 	CMP	AL,'9'+1
+***** ERROR:  Invalid operand
+0613 E8 C6 FF              0811 	JC	$+5
+***** ERROR:  Invalid operand
+0616 E9 BB FB              0812 	JMP	ERROR
+***** ERROR:  Invalid operand
+0619 8A 07                 0813 	SUB	AL,'0'
+***** ERROR:  Invalid operand
+061B 2C 02                 0814 	MOV	DX,BX
+***** ERROR:  Invalid operand
+061D 72 E8                 0815 	SHL	BX
+***** ERROR:  Invalid operand
+061F 82 3F 66              0816 	SHL	BX
+0622 74 27                 0817 	ADD	BX,DX
+***** ERROR:  Invalid operand
+0624 73 E1                 0818 	SHL	BX
+***** ERROR:  Invalid operand
+0626 2C 61                 0819 	MOV	DL,AL
+***** ERROR:  Invalid operand
+0628 02 C0                 0820 	MOV	DH,0
+***** ERROR:  Invalid operand
+062A 02 C1                 0821 	ADD	BX,DX
+***** ERROR:  Invalid operand
+062C 02 C0                 0822 	DEC	CH
+***** ERROR:  Invalid operand
+062E 8A D0                 0823 	JNZ	DEC
+***** ERROR:  Invalid operand
+0630 03 DA                 0824 	XCHG	DX,BX
+***** ERROR:  Invalid operand
+0632 FE C5                 0825 	RET
+***** ERROR:  Invalid operand
+0634 8A 27                 0826 
+***** ERROR:  Invalid operand
+0636 0A E4                 0827 HEX:
+***** ERROR:  Invalid operand
+0638                       0828 	MOV	DX,ID
+***** ERROR:  Illegal character in label or opcode
+0638 8A E9                 0829 	DEC	CH
+***** ERROR:  Invalid operand
+063A 95                    0830 HEX1:
+063B E8 96 FF              0831 	MOV	SI,DX
+***** ERROR:  Invalid operand
+063E 95                    0832 	LODB
+***** ERROR:  Invalid operand
+063F 8A D5                 0833 	INC	DX
+***** ERROR:  Invalid operand
+0641 42                    0834 	SUB	AL,'0'
+***** ERROR:  Invalid operand
+0642 FE CC                 0835 	CMP	AL,10
+***** ERROR:  Invalid operand
+0644                       0836 	JC	GOTIT
+***** ERROR:  Illegal character in label or opcode
+0644 B1 0C                 0837 	CMP	AL,'g'-'0'
+***** ERROR:  Invalid operand
+0646                       0838 	JNC	ERR4
+***** ERROR:  Illegal character in label or opcode
+0646                       0839 	SUB	AL,'a'-10-'0'
+***** ERROR:  Illegal character in label or opcode
+0646 8A 47 02              0840 GOTIT:
+0649 FF 27                 0841 	SHL	BX
+***** ERROR:  Invalid operand
+064B                       0842 	SHL	BX
+064B C6 06 FE 12 04        0843 	SHL	BX
+0650 43                    0844 	SHL	BX
+***** ERROR:  Invalid operand
+0651 B4 00                 0845 	ADD	BL,AL
+***** ERROR:  Invalid operand
+0653 B4 01                 0846 	DEC	CH
+***** ERROR:  Invalid operand
+0655 43                    0847 	JNZ	HEX1
+0656                       0848 	XCHG	DX,BX
+***** ERROR:  Illegal character in label or opcode
+0656 88 26 67 13           0849 	RET
+065A 3C 01                 0850 
+***** ERROR:  Invalid operand
+065C 3C 05                 0851 ERR4:	JMP	ERROR
+***** ERROR:  Invalid operand
+065E 98                    0852 
+***** ERROR:  Invalid operand
+065F 8B F2                 0853 GETLET:
+***** ERROR:  Invalid operand
+0661 8A 07                 0854 	CALL	SCANB
+0663 43                    0855 	CMP	AL,EOL
+***** ERROR:  Invalid operand
+0664 72 1A                 0856 	STC
+0666 3C 19                 0857 	JZ	RET
+***** ERROR:  Invalid operand
+0668 98                    0858 	CMP	AL,';'
+***** ERROR:  Invalid operand
+0669 96                    0859 	STC
+066A 8B BC 6C 10           0860 	JZ	RET
+066E                       0861 	MOV	CL,10
+***** ERROR:  Illegal character in label or opcode
+066E 8A 25                 0862 	OR	AL,20H
+0670 0A E4                 0863 	CMP	AL,'a'
+***** ERROR:  Invalid operand
+0672                       0864 	JC	ERR4
+***** ERROR:  Illegal character in label or opcode
+0672 47                    0865 	CMP	AL,'z'+1
+***** ERROR:  Invalid operand
+0673 8B CA                 0866 	JNC	ERR4
+0675 F3                    0867 READID:
+***** ERROR:  Invalid operand
+0676 74 28                 0868 	MOV	BX,ID
+***** ERROR:  Invalid operand
+0678 B0 80                 0869 	MOV	CH,0
+067A                       0870 MOREID:
+***** ERROR:  Illegal character in label or opcode
+067A AE                    0871 	MOV	[BX],AL
+***** ERROR:  Invalid operand
+067B 47                    0872 	INC	CH
+067C FE CC                 0873 	INC	BX
+***** ERROR:  Invalid operand
+067E EB C4                 0874 	CALL	NEXTCHR
+***** ERROR:  Invalid operand
+0680                       0875 	CMP	AL,'0'
+***** ERROR:  Illegal character in label or opcode
+0680 3C D1                 0876 	JC	NOMORE
+***** ERROR:  Invalid operand
+0682 BF 32 0F              0877 	OR	AL,20H
+***** ERROR:  Invalid operand
+0685                       0878 	CMP	AL,'z'+1
+***** ERROR:  Illegal character in label or opcode
+0685                       0879 	JNC	NOMORE
+***** ERROR:  Illegal character in label or opcode
+0685 24 07                 0880 	CMP	AL,'9'+1
+0687 74 10                 0881 	JC	MOREID
+0689                       0882 	CMP	AL,'a'
+0689 82 3E 67 13 00        0883 	JNC	MOREID
+068E 74 B4                 0884 NOMORE:
+***** ERROR:  Invalid operand
+0690 E8 E2 00              0885 	MOV	CL,AL
+***** ERROR:  Invalid operand
+0693 E8 DF 00              0886 	MOV	AL,CH
+***** ERROR:  Invalid operand
+0696 E9 DC 00              0887 	MOV	[LENID],AL
+***** ERROR:  Invalid operand
+0699                       0888 	OR	AL,AL
+***** ERROR:  Illegal character in label or opcode
+0699 82 3E 67 13 00        0889 	MOV	AL,CL
+069E 75 DE                 0890 	RET
+***** ERROR:  Invalid operand
+06A0                       0891 
+***** ERROR:  Illegal character in label or opcode
+06A0                       0892 LETTER:
+***** ERROR:  Illegal character in label or opcode
+06A0 8B F7                 0893 	CALL	READID
+***** ERROR:  Invalid operand
+06A2 75 00                 0894 	MOV	AL,CH
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+06A4 E8 CE 00              0895 	DEC	AL
+***** ERROR:  Invalid operand
+06A7 AD                    0896 	JNZ	NOFLG
+06A8 A8 F8                 0897 	MOV	AL,[ID]
+06AA 74 43                 0898 	MOV	CX,5
+06AC A8 78                 0899 	MOV	DI,FLGTAB
+06AE 74 D5                 0900 	UP
+***** ERROR:  Invalid operand
+06B0 E8 7B FD              0901 	REPNE
+06B3 59                    0902 	SCAB			;See if one of B,W,S,L,T
+***** ERROR:  Invalid operand
+06B4 74 36                 0903 	JZ	SAVFLG		;Go save flag
+***** ERROR:  Invalid operand
+06B6 74 34                 0904 	XOR	AL,AL
+***** ERROR:  Invalid operand
+06B8 75 45                 0905 	MOV	CH,[LENID]
+***** ERROR:  Invalid operand
+06BA A8 40                 0906 NOFLG:
+06BC 75 27                 0907 	DEC	AL
+06BE A8 20                 0908 	PUSH	BX
+06C0 B1 14                 0909 	JNZ	L0004
+***** ERROR:  Invalid operand
+06C2 A8 18                 0910 	CALL	REGCHK
+06C4 7A 00                 0911 L0004:	
+***** ERROR:  Undefined label
+06C6 52                    0912 	POP	BX
+06C7 50                    0913 	MOV	AL,DH
+06C8 E8 63 FD              0914 	JZ	SYMSAV
+***** ERROR:  Invalid operand
+06CB B1 15                 0915 	CALL	LOOKRET
+***** ERROR:  Invalid operand
+06CD E8 5E FD              0916 SYMSAV:
+***** ERROR:  Invalid operand
+06D0 3C 06                 0917 	MOV	[SYM],AL
+***** ERROR:  Invalid operand
+06D2 58                    0918 	RET
+***** ERROR:  Invalid operand
+06D3 34 02                 0919 
+06D5 24 FB                 0920 SAVFLG:
+06D7 0A DB                 0921 	MOV	DL,CL		;Need flag type in DL
+06D9 74 00                 0922 	XCHG	[FLAG],CL
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+06DB 0A DB                 0923 	CMP	CL,-1
+06DD 75 00                 0924 	MOV	CL,32
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+06DF EB 04                 0925 	MOV	AL,5
+***** ERROR:  Invalid operand
+06E1 A8 02                 0926 	JZ	SYMSAV
+06E3 75 00                 0927 ERRJ3:	JMP	ERROR
+***** ERROR:  Undefined label
+06E5                       0928 
+***** ERROR:  Illegal character in label or opcode
+06E5 80 E4 F8              0929 FLGTAB:	DB	"tlswb"
+06E8 0A E2                 0930 
+***** ERROR:  Invalid operand
+06EA 50                    0931 FPREG:
+***** ERROR:  Invalid operand
+06EB 58                    0932 ;Have detected "ST" for 8087 floating point stack register
+***** ERROR:  Invalid operand
+06EC                       0933 	MOV	DL,0		;Default is ST(0)
+***** ERROR:  Illegal character in label or opcode
+06EC                       0934 	CALL	SCANB		;Get next character
+***** ERROR:  Illegal character in label or opcode
+06EC 91                    0935 	CMP	AL,"("		;Specifying register number?
+***** ERROR:  Invalid operand
+06ED B1 14                 0936 	JNZ	HAVREG
+***** ERROR:  Invalid operand
+06EF                       0937 ;Get register number
+***** ERROR:  Illegal character in label or opcode
+06EF                       0938 	CALL	NEXTCHR		;Skip over the "("
+06EF 50                    0939 	CALL	GETOP		;A little recursion never hurt anybody
+***** ERROR:  Invalid operand
+06F0 3D 04 E0              0940 	CMP	AL,CONST	;Better have found a constant
+***** ERROR:  Invalid operand
+06F3 75 00                 0941 	MOV	CL,20		;Operand error if not
+***** ERROR:  Invalid operand
+06F5                       0942 	JNZ	ERRJ3
+***** ERROR:  Illegal character in label or opcode
+06F5 24 07                 0943 	CMP	[DLABEL],0	;Constant must be defined
+***** ERROR:  Invalid operand
+06F7 E8 7B 00              0944 	MOV	CL,30
+***** ERROR:  Invalid operand
+06FA E9 78 00              0945 	JNZ	ERRJ3
+***** ERROR:  Invalid operand
+06FD                       0946 	MOV	DX,[DATA]	;Get constant
+***** ERROR:  Illegal character in label or opcode
+06FD B1 20                 0947 	CMP	DX,7		;Constant must be in range 0-7
+***** ERROR:  Invalid operand
+06FF                       0948 	MOV	CL,31
+***** ERROR:  Illegal character in label or opcode
+06FF                       0949 	JA	ERRJ3
+***** ERROR:  Illegal character in label or opcode
+06FF 51                    0950 	MOV	AL,[SYM]
+0700 E8 00 00              0951 	CMP	AL,")"
+***** ERROR:  Undefined label
+0703 3C 00                 0952 	MOV	CL,24
+0705 B1 14                 0953 	JNZ	ERRJ3
+***** ERROR:  Invalid operand
+0707 58                    0954 HAVREG:
+***** ERROR:  Invalid operand
+0708 75 04                 0955 	MOV	DH,FREG
+***** ERROR:  Invalid operand
+070A 74 00                 0956 	XOR	AL,AL		;Zero set means register found
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+070C 75 15                 0957 	RET
+070E                       0958 
+***** ERROR:  Illegal character in label or opcode
+070E 24 F9                 0959 REGCHK:
+0710 8A 0E 00 00           0960 	MOV	BX,ID
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+0714 7C E7                 0961 	CMP	[BX],"s"+7400H	;"st"
+***** ERROR:  Invalid operand
+0716 D0 E8                 0962 	JZ	FPREG
+0718 24 0C                 0963 	MOV	CL,[BX]
+***** ERROR:  Invalid operand
+071A BB 2D 07              0964 	INC	BX
+***** ERROR:  Invalid operand
+071D 0A C0                 0965 	MOV	AL,[BX]
+071F 78 DC                 0966 	MOV	BX,REGTAB
+***** ERROR:  Invalid operand
+0721 0A C5                 0967 	MOV	DH,XREG
+0723                       0968 	MOV	DL,0
+***** ERROR:  Illegal character in label or opcode
+0723 24 07                 0969 	CMP	AL,'x'
+***** ERROR:  Invalid operand
+0725 E8 4D 00              0970 	JZ	SCANREG
+***** ERROR:  Invalid operand
+0728 24 38                 0971 	MOV	DH,REG
+***** ERROR:  Invalid operand
+072A E9 B5 00              0972 	CMP	AL,'l'
+***** ERROR:  Invalid operand
+072D                       0973 	JZ	SCANREG
+***** ERROR:  Illegal character in label or opcode
+072D                       0974 	MOV	DL,4
+072D                       0975 	CMP	AL,'h'
+072D                       0976 	JZ	SCANREG
+072D                       0977 	MOV	DH,SREG
+072D                       0978 	MOV	DL,0
+072D                       0979 	MOV	BX,SEGTAB
+072D                       0980 	CMP	AL,'s'
+072D                       0981 	JZ	SCANREG
+072D                       0982 	MOV	DH,XREG
+072D                       0983 	CMP	AL,'p'
+***** ERROR:  Illegal character in label or opcode
+072D 06 02 80 80           0984 	JZ	PREG
+0731 80 00 04 80           0985 	CMP	AL,'i'
+0735 06 02 2E 80           0986 	JNZ	RET
+0739 80 00 04 2B           0987 	MOV	DL,6
+073D                       0988 	MOV	AL,CL
+***** ERROR:  Illegal character in label or opcode
+073D                       0989 	CMP	AL,'s'
+***** ERROR:  Illegal character in label or opcode
+073D B9 09 8A              0990 	JZ	RET
+***** ERROR:  Invalid operand
+0740 B9 C6 00              0991 	INC	DL
+***** ERROR:  Invalid operand
+0743 3C 00                 0992 	CMP	AL,'d'
+***** ERROR:  Invalid operand
+0745 E8 1F 00              0993 	RET
+***** ERROR:  Invalid operand
+0748 24 01                 0994 PREG:
+***** ERROR:  Invalid operand
+074A B0 B8                 0995 	MOV	DL,4
+***** ERROR:  Invalid operand
+074C E8 26 00              0996 	MOV	AL,CL
+***** ERROR:  Invalid operand
+074F                       0997 	CMP	AL,'s'
+***** ERROR:  Illegal character in label or opcode
+074F                       0998 	JZ	RET
+***** ERROR:  Illegal character in label or opcode
+074F B0 B0                 0999 	INC	DL
+***** ERROR:  Invalid operand
+0751 E8 21 00              1000 	CMP	AL,'b'
+***** ERROR:  Invalid operand
+0754                       1001 	RET
+***** ERROR:  Illegal character in label or opcode
+0754                       1002 SCANREG:
+***** ERROR:  Illegal character in label or opcode
+0754 8A C7                 1003 	MOV	AL,CL
+***** ERROR:  Invalid operand
+0756 74 0F                 1004 	MOV	CX,4
+***** ERROR:  Invalid operand
+0758 0A C0                 1005 	UP
+***** ERROR:  Invalid operand
+075A 8A C7                 1006 	MOV	DI,BX
+***** ERROR:  Invalid operand
+075C 0C C0                 1007 	REPNZ
+***** ERROR:  Invalid operand
+075E                       1008 	SCAB
+***** ERROR:  Illegal character in label or opcode
+075E 8A C1                 1009 	MOV	BX,DI
+***** ERROR:  Invalid operand
+0760 A8 01                 1010 	JNZ	RET
+***** ERROR:  Invalid operand
+0762 3C 83                 1011 	MOV	AL,CL
+***** ERROR:  Invalid operand
+0764 E9 40 00              1012 	ADD	AL,DL
+***** ERROR:  Invalid operand
+0767                       1013 	MOV	DL,AL
+***** ERROR:  Illegal character in label or opcode
+0767 A0 00 00              1014 	XOR	AL,AL
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+076A E8 75 00              1015 	RET
+***** ERROR:  Invalid operand
+076D                       1016 
+***** ERROR:  Illegal character in label or opcode
+076D                       1017 REGTAB:	DB	'bdca'
+***** ERROR:  Illegal character in label or opcode
+076D 24 01                 1018 
+***** ERROR:  Invalid operand
+076F 8A C8                 1019 SEGTAB:	DB	'dsce'
+***** ERROR:  Invalid operand
+0771 8A C5                 1020 
+***** ERROR:  Invalid operand
+0773 0A C3                 1021 LOOK:
+***** ERROR:  Invalid operand
+0775                       1022 	MOV	CH,[BX]
+***** ERROR:  Illegal character in label or opcode
+0775                       1023 	INC	BX
+***** ERROR:  Illegal character in label or opcode
+0775                       1024 	MOV	DX,ID
+0775                       1025 	CALL	CPSLP
+0775 53                    1026 	JZ	RET
+***** ERROR:  Invalid operand
+0776 B5 00                 1027 	XOR	AL,80H
+0778 E8 01 00              1028 	ROL	AL		;Make end-of-symbol bit least significant
+***** ERROR:  Invalid operand
+077B 5B                    1029 	MOV	CL,AL
+***** ERROR:  Invalid operand
+077C                       1030 	DEC	BX
+***** ERROR:  Illegal character in label or opcode
+077C                       1031 	MOV	AL,[BX]
+***** ERROR:  Illegal character in label or opcode
+077C                       1032 	XOR	AL,80H
+077C E8 1C 00              1033 	ROL	AL
+077F                       1034 	CMP	AL,CL
+***** ERROR:  Illegal character in label or opcode
+077F A0 00 00              1035 	JNC	SMALL
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+0782 D0 D0                 1036 	INC	CH
+***** ERROR:  Invalid operand
+0784 D0 D0                 1037 	INC	CH
+***** ERROR:  Invalid operand
+0786 BB 5A 13              1038 SMALL:
+***** ERROR:  Invalid operand
+0789 75 00                 1039 	MOV	DL,CH
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+078B BB 00 00              1040 	MOV	DH,0
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+078E C6 07 00              1041 	ADD	BX,DX
+***** ERROR:  Invalid operand
+0791 88 05                 1042 	MOV	DX,[BX]
+***** ERROR:  Invalid operand
+0793 89 1E 68 13           1043 	INC	BX
+***** ERROR:  Invalid operand
+0797 89 1E 00 00           1044 	MOV	AL,DL
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+079B                       1045 	OR	AL,DH
+***** ERROR:  Illegal character in label or opcode
+079B                       1046 	STC
+***** ERROR:  Illegal character in label or opcode
+079B FF 06 FA 12           1047 	JZ	RET
+***** ERROR:  Invalid operand
+079F 8B 3E 00 00           1048 	XCHG	DX,BX
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+07A3 89 3E 00 00           1049 	JP	LOOK
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+07A7                       1050 
+***** ERROR:  Illegal character in label or opcode
+07A7                       1051 LOOKRET:
+***** ERROR:  Illegal character in label or opcode
+07A7                       1052 	MOV	AL,CH
+07A7                       1053 	CMP	AL,3	;RET has 3 letters
+07A7                       1054 	JNZ	LOOKUP
+07A7 51                    1055 	DEC	BX
+***** ERROR:  Invalid operand
+07A8 52                    1056 	OR	B,[BX],080H
+***** ERROR:  Invalid operand
+07A9 EB 00                 1057 	MOV	DX,RETSTR+2
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+07AB                       1058 CHKRET:
+***** ERROR:  Illegal character in label or opcode
+07AB                       1059 	MOV	SI,DX
+07AB 51                    1060 	LODB
+***** ERROR:  Invalid operand
+07AC 52                    1061 	CMP	AL,[BX]
+***** ERROR:  Invalid operand
+07AD 8B 1E 01 13           1062 	JNZ	LOOKIT
+***** ERROR:  Invalid operand
+07B1 0A C3                 1063 	DEC	BX
+***** ERROR:  Invalid operand
+07B3 8B 1E 00 00           1064 	DEC	DX
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+07B7 74 00                 1065 	DEC	CH
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+07B9 74 00                 1066 	JNZ	CHKRET
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+07BB E9 55 FA              1067 	MOV	DX,[LSTRET]
+***** ERROR:  Invalid operand
+07BE 8B 16 01 13           1068 	MOV	AL,DL
+***** ERROR:  Invalid operand
+07C2                       1069 	AND	AL,DH
+***** ERROR:  Illegal character in label or opcode
+07C2 0B D2                 1070 	INC	AL
+***** ERROR:  Invalid operand
+07C4 8A C2                 1071 	JZ	ALLRET
+***** ERROR:  Invalid operand
+07C6 8A C6                 1072 	MOV	BX,[PC]
+***** ERROR:  Invalid operand
+07C8 8A C3                 1073 	SUB	BX,DX
+***** ERROR:  Invalid operand
+07CA 8A C7                 1074 	MOV	AL,BL
+***** ERROR:  Invalid operand
+07CC 74 00                 1075 	CBW
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+07CE EB 03                 1076 	CMP	AX,BX		;Signed 8-bit number?
+***** ERROR:  Invalid operand
+07D0 E8 00 00              1077 	MOV	AL,1
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+07D3                       1078 	JZ	RET
+***** ERROR:  Illegal character in label or opcode
+07D3 5B                    1079 ALLRET:
+***** ERROR:  Invalid operand
+07D4 59                    1080 	MOV	BX,[RETPT]
+***** ERROR:  Invalid operand
+07D5                       1081 	MOV	AL,BH
+***** ERROR:  Illegal character in label or opcode
+07D5                       1082 	OR	AL,BL
+***** ERROR:  Illegal character in label or opcode
+07D5 8A C3                 1083 	MOV	AL,0
+***** ERROR:  Invalid operand
+07D7 51                    1084 	JNZ	RET
+***** ERROR:  Invalid operand
+07D8 E8 A1 FF              1085 	MOV	BX,[HEAP]
+***** ERROR:  Invalid operand
+07DB 8A C1                 1086 	DEC	BX
+***** ERROR:  Invalid operand
+07DD B5 00                 1087 	DEC	BX
+***** ERROR:  Invalid operand
+07DF E8 9A FF              1088 	DEC	BX
+***** ERROR:  Invalid operand
+07E2                       1089 	MOV	[HEAP],BX
+***** ERROR:  Illegal character in label or opcode
+07E2                       1090 	XOR	AL,AL
+***** ERROR:  Illegal character in label or opcode
+07E2                       1091 	MOV	[BX],AL
+07E2                       1092 	MOV	[RETPT],BX
+07E2                       1093 	RET
+07E2                       1094 
+07E2 51                    1095 LOOKUP:
+***** ERROR:  Invalid operand
+07E3 53                    1096 	DEC	BX
+***** ERROR:  Invalid operand
+07E4 8A C8                 1097 	OR	B,[BX],080H
+***** ERROR:  Invalid operand
+07E6 8A C1                 1098 LOOKIT:
+***** ERROR:  Invalid operand
+07E8 24 C7                 1099 	MOV	BX,[BASE]
+***** ERROR:  Invalid operand
+07EA 74 06                 1100 	MOV	AL,BH
+07EC 24 C0                 1101 	OR	AL,BL
+***** ERROR:  Invalid operand
+07EE 3C C0                 1102 	JZ	EMPTY
+***** ERROR:  Invalid operand
+07F0 8A E8                 1103 	CALL	LOOK
+07F2                       1104 	JC	ENTER
+***** ERROR:  Illegal character in label or opcode
+07F2 8B 1E 00 00           1105 	MOV	DX,4
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+07F6 EB CA                 1106 	ADD	BX,DX
+***** ERROR:  Invalid operand
+07F8                       1107 	MOV	AL,[BX]
+***** ERROR:  Illegal character in label or opcode
+07F8 E8 D4 FA              1108 	OR	AL,AL
+***** ERROR:  Invalid operand
+07FB 3C 00                 1109 	JZ	RET
+***** ERROR:  Invalid operand
+07FD B5 50                 1110 	INC	BX
+***** ERROR:  Invalid operand
+07FF 74 0F                 1111 	MOV	DX,[BX]
+***** ERROR:  Invalid operand
+0801 3C 04                 1112 	INC	BX
+***** ERROR:  Invalid operand
+0803 E9 00 00              1113 	RET
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+0806 E9 0A FA              1114 
+***** ERROR:  Invalid operand
+0809                       1115 ENTER:
+***** ERROR:  Illegal character in label or opcode
+0809 8A C5                 1116 	PUSH	BX		;Save pointer to link field
+***** ERROR:  Invalid operand
+080B 8A C1                 1117 	CALL	CREATE		;Add the node
+***** ERROR:  Invalid operand
+080D E9 D2 FF              1118 	POP	SI
+***** ERROR:  Invalid operand
+0810                       1119 	MOV	[SI-1],DX	;Link new node
+***** ERROR:  Illegal character in label or opcode
+0810 8A C5                 1120 	RET			;Zero was set by CREATE
+***** ERROR:  Invalid operand
+0812 E9 60 FF              1121 
+***** ERROR:  Invalid operand
+0815                       1122 EMPTY:
+***** ERROR:  Illegal character in label or opcode
+0815 E8 B7 FA              1123 	CALL	CREATE
+***** ERROR:  Invalid operand
+0818 E8 AF FA              1124 	MOV	[BASE],DX
+***** ERROR:  Invalid operand
+081B B9 14 86              1125 	RET
+***** ERROR:  Invalid operand
+081E 3A C7                 1126 
+***** ERROR:  Invalid operand
+0820 3A C6                 1127 
+***** ERROR:  Invalid operand
+0822 B0 01                 1128 CREATE:
+***** ERROR:  Invalid operand
+0824 74 28                 1129 
+***** ERROR:  Invalid operand
+0826 74 26                 1130 ; Add a new node to the identifier tree. The identifier is at ID with
+***** ERROR:  Invalid operand
+0828 3A C7                 1131 ; bit 7 of the last character set to one. The length of the identifier is
+***** ERROR:  Invalid operand
+082A 3A C6                 1132 ; in LENID, which is ID-1.
+***** ERROR:  Invalid operand
+082C 8A C7                 1133 ;
+***** ERROR:  Invalid operand
+082E B1 16                 1134 ; Node format:
+***** ERROR:  Invalid operand
+0830 3C 03                 1135 ;	1. Length of identifier (1 byte)
+***** ERROR:  Invalid operand
+0832 E8 22 FA              1136 ;	2. Identifier (1-80 bytes)
+***** ERROR:  Invalid operand
+0835 8A C3                 1137 ;	3. Left link (2-byte pointer to alphabetically smaller identifiers)
+***** ERROR:  Invalid operand
+0837 74 00                 1138 ;	4. Right link (0 if none larger)
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+0839 8A C3                 1139 ;	5. Data field:
+***** ERROR:  Invalid operand
+083B 8A C7                 1140 ;	   a. Defined flag (0=undefined, 1=defined)
+***** ERROR:  Invalid operand
+083D E8 17 FA              1141 ;	   b. Value (2 bytes)
+***** ERROR:  Invalid operand
+0840 B0 90                 1142 ;
+***** ERROR:  Invalid operand
+0842 E9 30 FF              1143 ; This routine returns with AL=zero and zero flag set (which indicates
+***** ERROR:  Invalid operand
+0845                       1144 ; on return from LOOKUP that it has not yet been defined), DX points
+***** ERROR:  Illegal character in label or opcode
+0845 87 DA                 1145 ; to start of new node, and BX points to data field of new node.
+***** ERROR:  Invalid operand
+0847 3A C7                 1146 
+***** ERROR:  Invalid operand
+0849 B1 01                 1147 	MOV	AL,[LENID]
+084B E8 62 FA              1148 	ADD	AL,8		;Storage needed for the node
+084E E9 C2 F9              1149 	MOV	BX,[HEAP]
+***** ERROR:  Invalid operand
+0851                       1150 	MOV	DL,AL
+***** ERROR:  Illegal character in label or opcode
+0851 50                    1151 	MOV	DH,0
+***** ERROR:  Invalid operand
+0852 59                    1152 	SUB	BX,DX		;Heap grows downward
+***** ERROR:  Invalid operand
+0853 3C 01                 1153 	MOV	[HEAP],BX
+***** ERROR:  Invalid operand
+0855 2C 03                 1154 	XCHG	DX,BX
+***** ERROR:  Invalid operand
+0857 FE CA                 1155 	MOV	BX,[CODE]	;Check to make sure there's enough
+***** ERROR:  Invalid operand
+0859 B1 14                 1156 	CMP	BX,DX
+***** ERROR:  Invalid operand
+085B 8A C5                 1157 	JB	$+5
+***** ERROR:  Invalid operand
+085D E9 15 FF              1158 	JMP	ABORT
+***** ERROR:  Invalid operand
+0860 8A C5                 1159 	PUSH	DX
+***** ERROR:  Invalid operand
+0862 E9 46 FF              1160 	MOV	BX,LENID
+***** ERROR:  Invalid operand
+0865                       1161 	MOV	CL,[BX]
+***** ERROR:  Illegal character in label or opcode
+0865 50                    1162 	INC	CL
+***** ERROR:  Invalid operand
+0866 B1 14                 1163 	MOV	CH,0
+***** ERROR:  Invalid operand
+0868 75 E4                 1164 	UP
+***** ERROR:  Invalid operand
+086A 8A C7                 1165 	MOV	SI,BX
+***** ERROR:  Invalid operand
+086C B1 1E                 1166 	MOV	DI,DX
+***** ERROR:  Invalid operand
+086E 8B 1E 00 00           1167 	REP
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+0872 0A C0                 1168 	MOVB			;Move identifier and length into node
+***** ERROR:  Invalid operand
+0874 FE C8                 1169 	MOV	DX,DI
+***** ERROR:  Invalid operand
+0876 FE C8                 1170 	MOV	BX,SI
+***** ERROR:  Invalid operand
+0878 FE C8                 1171 	MOV	CH,4
+***** ERROR:  Invalid operand
+087A E9 F2 01              1172 	XCHG	DX,BX
+***** ERROR:  Invalid operand
+087D B0 FD                 1173 NILIFY:
+***** ERROR:  Invalid operand
+087F                       1174 	MOV	[BX],CL		;Zero left and right links
+***** ERROR:  Illegal character in label or opcode
+087F A0 FA 12              1175 	INC	BX
+***** ERROR:  Invalid operand
+0882 74 00                 1176 	DEC	CH
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+0884                       1177 	JNZ	NILIFY
+***** ERROR:  Illegal character in label or opcode
+0884 87 DA                 1178 	XOR	AL,AL		;Set zero flag
+***** ERROR:  Invalid operand
+0886 03 DA                 1179 	MOV	[BX],AL		;Zero defined flag
+***** ERROR:  Invalid operand
+0888 87 DA                 1180 	POP	DX		;Restore pointer to node
+***** ERROR:  Invalid operand
+088A EB 0E                 1181 	RET
+***** ERROR:  Invalid operand
+088C 87 DA                 1182 
+***** ERROR:  Invalid operand
+088E 8A C7                 1183 CPSLP:
+***** ERROR:  Invalid operand
+0890 B1 22                 1184 	MOV	SI,DX
+***** ERROR:  Invalid operand
+0892 88 17                 1185 	LODB
+***** ERROR:  Invalid operand
+0894 88 37                 1186 	CMP	AL,[BX]
+***** ERROR:  Invalid operand
+0896                       1187 	LAHF
+***** ERROR:  Illegal character in label or opcode
+0896 89 1E FA 12           1188 	INC	DX
+***** ERROR:  Invalid operand
+089A                       1189 	INC	BX
+***** ERROR:  Illegal character in label or opcode
+089A E8 00 00              1190 	SAHF
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+089D E8 00 00              1191 	JNZ	RET
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+08A0 E8 00 00              1192 	DEC	CH
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+08A3 E9 D9 FE              1193 	JNZ	CPSLP
+***** ERROR:  Invalid operand
+08A6 8A E8                 1194 	RET
+***** ERROR:  Invalid operand
+08A8 E8 87 F9              1195 
+***** ERROR:  Invalid operand
+08AB E9 65 F9              1196 GETLAB:
+***** ERROR:  Invalid operand
+08AE 8A E8                 1197 	MOV	BX,0
+***** ERROR:  Invalid operand
+08B0 E8 7F F9              1198 	MOV	[LABPT],BX
+***** ERROR:  Invalid operand
+08B3 8B 16 01 13           1199 	MOV	B,[FLAG],-1
+***** ERROR:  Invalid operand
+08B7 0A C2                 1200 	MOV	DH,0
+***** ERROR:  Invalid operand
+08B9 87 DA                 1201 	MOV	AL,[CHR]
+***** ERROR:  Invalid operand
+08BB 8A C3                 1202 	CMP	AL,' '+1
+***** ERROR:  Invalid operand
+08BD 3B C3                 1203 	JC	NOT1
+***** ERROR:  Invalid operand
+08BF 75 00                 1204 	OR	DH,001H
+***** ERROR:  Invalid operand
+08C1 E9 61 00              1205 NOT1:
+***** ERROR:  Invalid operand
+08C4 8A C8                 1206 	CALL	GETLET
+***** ERROR:  Invalid operand
+08C6 EB 02                 1207 	JC	RET
+***** ERROR:  Invalid operand
+08C8 8A C8                 1208 	CMP	AL,':'
+***** ERROR:  Invalid operand
+08CA                       1209 	JNZ	LABCHK
+***** ERROR:  Illegal character in label or opcode
+08CA 51                    1210 	CALL	NEXTCHR
+***** ERROR:  Invalid operand
+08CB                       1211 	JP	LABEL
+***** ERROR:  Illegal character in label or opcode
+08CB B1 1A                 1212 LABCHK:
+***** ERROR:  Invalid operand
+08CD 74 DC                 1213 	OR	AL,AL
+***** ERROR:  Invalid operand
+08CF B1 16                 1214 	TEST	DH,001H
+***** ERROR:  Invalid operand
+08D1 59                    1215 	JZ	RET
+***** ERROR:  Invalid operand
+08D2 74 00                 1216 LABEL:
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+08D4 74 10                 1217 	MOV	AL,[CHKLAB]
+***** ERROR:  Invalid operand
+08D6 74 0E                 1218 	OR	AL,AL
+***** ERROR:  Invalid operand
+08D8 24 F8                 1219 	JZ	$+5
+***** ERROR:  Invalid operand
+08DA E9 98 FE              1220 	JMP	GETLET
+***** ERROR:  Invalid operand
+08DD A0 00 00              1221 	CALL	LOOKUP
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+08E0 0A C5                 1222 	MOV	CL,11
+***** ERROR:  Invalid operand
+08E2 8A C1                 1223 	JNZ	ERR5
+***** ERROR:  Invalid operand
+08E4 0A C2                 1224 	MOV	DX,[PC]
+***** ERROR:  Invalid operand
+08E6                       1225 	MOV	B,[BX],1
+***** ERROR:  Illegal character in label or opcode
+08E6 0A C5                 1226 	INC	BX
+***** ERROR:  Invalid operand
+08E8 8A C1                 1227 	MOV	[BX],DX
+***** ERROR:  Invalid operand
+08EA 0C C0                 1228 	MOV	[LABPT],BX
+***** ERROR:  Invalid operand
+08EC E9 86 FE              1229 	JMP	GETLET
+***** ERROR:  Invalid operand
+08EF 8A C8                 1230 
+***** ERROR:  Invalid operand
+08F1 51                    1231 ERR5:	JMP	ERROR
+***** ERROR:  Invalid operand
+08F2 B1 14                 1232 
+***** ERROR:  Invalid operand
+08F4 0A C0                 1233 ASMLIN:
+***** ERROR:  Invalid operand
+08F6 8A C6                 1234 	MOV	B,[MAXFLG],1	;Allow only B and W flags normally
+***** ERROR:  Invalid operand
+08F8 74 00                 1235 	MOV	BX,[PC]
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+08FA 75 3A                 1236 	MOV	[OLDPC],BX
+***** ERROR:  Invalid operand
+08FC 50                    1237 	CALL	GETLAB
+***** ERROR:  Invalid operand
+08FD 58                    1238 	JNC	$+5
+***** ERROR:  Invalid operand
+08FE A2 00 00              1239 	JMP	ENDLN
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+0901 EB C8                 1240 	MOV	BX,LENID
+***** ERROR:  Invalid operand
+0903 E8 6F FE              1241 	MOV	AL,[BX]
+***** ERROR:  Invalid operand
+0906 E9 6C FE              1242 	MOV	CL,12
+***** ERROR:  Invalid operand
+0909 8A C8                 1243 	SUB	AL,2
+***** ERROR:  Invalid operand
+090B 51                    1244 	MOV	CH,AL
+***** ERROR:  Invalid operand
+090C A0 55 13              1245 	JC	ERR5
+***** ERROR:  Invalid operand
+090F 8A C6                 1246 	INC	BX
+***** ERROR:  Invalid operand
+0911 52                    1247 	CMP	B,[BX],"f"	;See if an 8087 mnemonic
+***** ERROR:  Invalid operand
+0912 2C 02                 1248 	JZ	NDPOP
+***** ERROR:  Invalid operand
+0914 FE CA                 1249 	CMP	AL,5
+***** ERROR:  Invalid operand
+0916 75 1E                 1250 	JNC	ERR5
+***** ERROR:  Invalid operand
+0918 8A C6                 1251 	MOV	AL,[BX]
+***** ERROR:  Invalid operand
+091A 80 CD 02              1252 	SUB	AL,'a'
+***** ERROR:  Invalid operand
+091D E9 AB FF              1253 	MOV	CL,AL
+***** ERROR:  Invalid operand
+0920 8A E8                 1254 	ADD	AL,AL
+***** ERROR:  Invalid operand
+0922 E8 0D F9              1255 	ADD	AL,AL
+***** ERROR:  Invalid operand
+0925                       1256 	ADD	AL,CL
+***** ERROR:  Illegal character in label or opcode
+0925 E8 2C FE              1257 	ADD	AL,CH
+***** ERROR:  Invalid operand
+0928 80 E5 FD              1258 	ADD	AL,AL
+***** ERROR:  Invalid operand
+092B 8A C7                 1259 	MOV	BX,OPTAB
+***** ERROR:  Invalid operand
+092D 9F                    1260 	MOV	DL,AL
+***** ERROR:  Invalid operand
+092E 0A C5                 1261 	MOV	DH,0
+***** ERROR:  Invalid operand
+0930 58                    1262 	ADD	BX,DX
+***** ERROR:  Invalid operand
+0931 75 03                 1263 	MOV	BX,[BX]
+***** ERROR:  Invalid operand
+0933 E9 71 FE              1264 	INC	CH
+***** ERROR:  Invalid operand
+0936 E9 DA F8              1265 	MOV	CL,CH
+***** ERROR:  Invalid operand
+0939                       1266 	MOV	AH,[BX]
+***** ERROR:  Illegal character in label or opcode
+0939                       1267 	INC	BX
+0939 9F                    1268 	OR	AH,AH
+***** ERROR:  Invalid operand
+093A 50                    1269 	JZ	OPERR
+***** ERROR:  Invalid operand
+093B C6 06 FE 12 03        1270 FINDOP:
+0940 E8 8C F9              1271 	MOV	CH,CL
+***** ERROR:  Invalid operand
+0943 74 00                 1272 	MOV	DX,ID+1
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+0945 3C 02                 1273 	XCHG	AX,BP		;Save count of opcodes in BP
+***** ERROR:  Invalid operand
+0947 3C 04                 1274 	CALL	CPSLP
+***** ERROR:  Invalid operand
+0949 3C 03                 1275 	JZ	HAVOP
+***** ERROR:  Invalid operand
+094B 80 CA C0              1276 	XCHG	AX,BP
+***** ERROR:  Invalid operand
+094E                       1277 	MOV	DH,0
+094E B0 FF                 1278 	MOV	DL,CH
+***** ERROR:  Invalid operand
+0950 58                    1279 	INC	DX
+***** ERROR:  Invalid operand
+0951 9E                    1280 	INC	DX
+***** ERROR:  Invalid operand
+0952 0A C2                 1281 	ADD	BX,DX
+***** ERROR:  Invalid operand
+0954 82 FD 03              1282 	DEC	AH
+0957 74 04                 1283 	JNZ	FINDOP
+0959 B1 27                 1284 OPERR:
+***** ERROR:  Invalid operand
+095B 75 D9                 1285 	MOV	CL,12
+***** ERROR:  Invalid operand
+095D                       1286 	JMP	ERROR
+***** ERROR:  Illegal character in label or opcode
+095D E9 82 FE              1287 
+***** ERROR:  Invalid operand
+0960 A0 55 13              1288 HAVOP:
+***** ERROR:  Invalid operand
+0963 74 0E                 1289 	MOV	AL,[BX+2]	;Get opcode
+***** ERROR:  Invalid operand
+0965 86 E0                 1290 	JMP	[BX]
+***** ERROR:  Invalid operand
+0967 FE C8                 1291 
+***** ERROR:  Invalid operand
+0969 74 00                 1292 NDPOP:	;First letter is "F" so must be 8087 opcode ("Numeric Data Processor")
+***** ERROR:  Invalid operand
+096B                       1293 	MOV	B,[MAXFLG],4	;Allow all type flags
+***** ERROR:  Illegal character in label or opcode
+096B E8 07 FE              1294 	INC	BX
+***** ERROR:  Invalid operand
+096E 42                    1295 	CMP	B,[BX],"n"	;"No-wait" form?
+***** ERROR:  Invalid operand
+096F 29 16 00 00           1296 	MOV	AH,0
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+0973                       1297 	JNZ	SAVNFLG
+***** ERROR:  Illegal character in label or opcode
+0973 58                    1298 	MOV	AH,1
+***** ERROR:  Invalid operand
+0974 9E                    1299 	DEC	AL
+***** ERROR:  Invalid operand
+0975 E8 2F FE              1300 	INC	BX		;Skip over the "N"
+***** ERROR:  Invalid operand
+0978 B1 14                 1301 SAVNFLG:
+***** ERROR:  Invalid operand
+097A 75 BA                 1302 	MOV	[NOWAIT],AH	;0 for wait, 1 for no wait
+***** ERROR:  Invalid operand
+097C                       1303 	CMP	AL,1
+***** ERROR:  Illegal character in label or opcode
+097C                       1304 	JB	OPERR		;Not enough char left for valid opcode?
+***** ERROR:  Illegal character in label or opcode
+097C                       1305 	CMP	AL,5
+097C 9F                    1306 	JA	OPERR		;Too many?
+***** ERROR:  Invalid operand
+097D 50                    1307 	CBW
+***** ERROR:  Invalid operand
+097E E8 AD FA              1308 	XCHG	AX,DX		;Save length in DX
+***** ERROR:  Invalid operand
+0981 74 00                 1309 	MOV	SI,DX
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+0983 74 00                 1310 	OR	B,[SI+BX],80H	;Set high bit of last character
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+0985 74 00                 1311 	MOV	AL,[BX]		;Get first char of opcode
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+0987 E8 00 00              1312 	INC	BX
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+098A 3C 01                 1313 	SUB	AL,"a"
+***** ERROR:  Invalid operand
+098C 75 2E                 1314 	JB	TRY2XM1		;Go see if opcode starts with "2"
+***** ERROR:  Invalid operand
+098E 24 FE                 1315 	CMP	AL,"z"-"a"
+***** ERROR:  Invalid operand
+0990 E9 14 FE              1316 	JA	OPERR
+***** ERROR:  Invalid operand
+0993 82 FA 03              1317 	CBW
+0996 B1 27                 1318 	SHL	AX		;Double to index into address table
+***** ERROR:  Invalid operand
+0998 58                    1319 	XCHG	AX,SI		;Put in index register
+***** ERROR:  Invalid operand
+0999 9E                    1320 	MOV	DI,[SI+NDPTAB]	;Get start of opcode table for this letter
+***** ERROR:  Invalid operand
+099A 9F                    1321 LOOKNDP:
+***** ERROR:  Invalid operand
+099B 50                    1322 	MOV	AH,[DI]		;Number of opcodes starting with this letter
+***** ERROR:  Invalid operand
+099C                       1323 	OR	AH,AH
+***** ERROR:  Illegal character in label or opcode
+099C E8 8F FA              1324 	JZ	OPERR		;Any start with this letter?
+***** ERROR:  Invalid operand
+099F 74 14                 1325 FNDNDP:
+***** ERROR:  Invalid operand
+09A1 74 12                 1326 	INC	DI
+***** ERROR:  Invalid operand
+09A3 75 00                 1327 	MOV	SI,BX		;Pointer to start of opcode
+***** ERROR:  Invalid operand
+09A5                       1328 	MOV	CX,DX		;Get length of opcode
+***** ERROR:  Illegal character in label or opcode
+09A5 EB 00                 1329 	REPE
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+09A7                       1330 	CMPB			;Compare opcode to table entry
+09A7                       1331 	JZ	HAVNDP
+09A7 8B 1E FA 12           1332 	DEC	DI		;Back up in case that was last letter
+***** ERROR:  Invalid operand
+09AB 87 DA                 1333 	MOV	AL,80H		;Look for char with high bit set
+***** ERROR:  Invalid operand
+09AD 8A C7                 1334 ENDOP:
+***** ERROR:  Invalid operand
+09AF 74 04                 1335 	SCASB
+***** ERROR:  Invalid operand
+09B1 43                    1336 	JA	ENDOP
+***** ERROR:  Invalid operand
+09B2 BB 00 00              1337 	INC	DI		;Skip over info about opcode
+***** ERROR:  Invalid operand
+09B5                       1338 	DEC	AH
+***** ERROR:  Illegal character in label or opcode
+09B5 58                    1339 	JNZ	FNDNDP
+***** ERROR:  Invalid operand
+09B6 9E                    1340 OPERRJ:	JP	OPERR
+***** ERROR:  Invalid operand
+09B7                       1341 
+***** ERROR:  Illegal character in label or opcode
+09B7                       1342 TRY2XM1:
+***** ERROR:  Illegal character in label or opcode
+09B7 E8 BB FD              1343 	CMP	AL,"2"-"a"
+***** ERROR:  Invalid operand
+09BA 3C 01                 1344 	JNZ	OPERR
+***** ERROR:  Invalid operand
+09BC 75 13                 1345 	MOV	DI,XM1
+***** ERROR:  Invalid operand
+09BE 8B 16 FA 12           1346 	JP	LOOKNDP
+***** ERROR:  Invalid operand
+09C2 2B DA                 1347 
+***** ERROR:  Invalid operand
+09C4 E8 E4 FD              1348 SPECIALOP:
+***** ERROR:  Invalid operand
+09C7 8A C7                 1349 	AND	AL,7		;Mask to special op number
+***** ERROR:  Invalid operand
+09C9 75 00                 1350 	JZ	FWAIT		;If zero, go handle FWAIT
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+09CB 8A C3                 1351 ;Handle FNOP
+***** ERROR:  Invalid operand
+09CD 3B C3                 1352 	CMP	B,[NOWAIT],0	;Was "N" present (If not opcode was "FOP")
+09CF 74 00                 1353 	JZ	OPERR
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+09D1 E9 3F F8              1354 	MOV	AL,9BH		;Need Wait opcode after all
+***** ERROR:  Invalid operand
+09D4                       1355 	CALL	PUT
+***** ERROR:  Illegal character in label or opcode
+09D4 E8 F8 F8              1356 	MOV	AL,0D9H
+***** ERROR:  Invalid operand
+09D7 B1 14                 1357 	CALL	PUT
+***** ERROR:  Invalid operand
+09D9 8B 1E 01 13           1358 	MOV	AL,0D0H
+***** ERROR:  Invalid operand
+09DD 0A C3                 1359 	JMP	PUT
+***** ERROR:  Invalid operand
+09DF 8B 1E 00 00           1360 
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+09E3 1B DA                 1361 FWAIT:
+***** ERROR:  Invalid operand
+09E5 B0 CC                 1362 	CMP	B,[NOWAIT],0	;"FNWAIT" not legal
+***** ERROR:  Invalid operand
+09E7                       1363 	JNZ	OPERRJ
+***** ERROR:  Illegal character in label or opcode
+09E7 B0 CD                 1364 	RET			;Nothing to do - "WAIT" already sent
+***** ERROR:  Invalid operand
+09E9 E9 BF FD              1365 
+***** ERROR:  Invalid operand
+09EC                       1366 HAVNDP:
+09EC E8 E0 F8              1367 	MOV	SI,DI
+***** ERROR:  Invalid operand
+09EF 3C 01                 1368 	CMP	B,[NOWAIT],0
+***** ERROR:  Invalid operand
+09F1 B1 1E                 1369 	JNZ	NWAIT
+***** ERROR:  Invalid operand
+09F3 75 1C                 1370 	MOV	AL,9BH		;Wait opcode
+***** ERROR:  Invalid operand
+09F5 3D 40 00              1371 	CALL	PUT
+09F8 B1 1F                 1372 NWAIT:
+***** ERROR:  Invalid operand
+09FA 8A D8                 1373 	LODW			;Get opcode info
+09FC D0 E8                 1374 	TEST	AL,0F8H		;Any operand bits set?
+***** ERROR:  Invalid operand
+09FE D0 E8                 1375 	JZ	NOOPS		;If no operands, output code
+***** ERROR:  Invalid operand
+0A00 E8 72 FD              1376 	TEST	AL,78H		;Special case?
+***** ERROR:  Invalid operand
+0A03 E8 C4 F8              1377 	JZ	SPECIALOP
+***** ERROR:  Invalid operand
+0A06 80 E3 07              1378 	PUSH	AX
+0A09 D0 E3                 1379 	CALL	GETSYM		;See if any operands
+***** ERROR:  Invalid operand
+0A0B D0 E3                 1380 	POP	CX
+***** ERROR:  Invalid operand
+0A0D 74 05                 1381 	CMP	AL,";"
+***** ERROR:  Invalid operand
+0A0F 74 07                 1382 	JZ	NOOPCHK
+***** ERROR:  Invalid operand
+0A11 E9 FF F7              1383 	CMP	AL,EOL
+***** ERROR:  Invalid operand
+0A14                       1384 	JZ	NOOPCHK
+***** ERROR:  Illegal character in label or opcode
+0A14 0A DA                 1385 	CMP	AL,FREG		;Is it 8087 register?
+0A16 8A C3                 1386 	JNZ	MEMOP
+***** ERROR:  Invalid operand
+0A18                       1387 	XCHG	AX,CX
+***** ERROR:  Illegal character in label or opcode
+0A18                       1388 	TEST	AL,ONEREG	;One register OK as operand?
+***** ERROR:  Illegal character in label or opcode
+0A18 B1 1E                 1389 	JNZ	PUTREG		;Yes - save it
+***** ERROR:  Invalid operand
+0A1A 75 F5                 1390 	TEST	AL,20H		;Memory-only operation?
+***** ERROR:  Invalid operand
+0A1C B1 1F                 1391 	MOV	CL,20
+***** ERROR:  Invalid operand
+0A1E 73 F1                 1392 	JNZ	ERRJ4
+***** ERROR:  Invalid operand
+0A20 0C C0                 1393 	TEST	AL,18H		;Two-register operation?
+0A22 E9 50 FD              1394 	JPE	ERRJ4		;Must be exactly one bit set
+***** ERROR:  Invalid operand
+0A25                       1395 	PUSH	DX		;Save register number
+***** ERROR:  Illegal character in label or opcode
+0A25 8A E8                 1396 	PUSH	AX		;Save opcode
+***** ERROR:  Invalid operand
+0A27 E8 08 F8              1397 	CALL	GETSYM
+***** ERROR:  Invalid operand
+0A2A E8 27 FD              1398 	CMP	AL,","
+***** ERROR:  Invalid operand
+0A2D E9 00 00              1399 	MOV	CL,15H
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+0A30 E8 9C F8              1400 	JNZ	ERRJ4
+***** ERROR:  Invalid operand
+0A33 B1 1C                 1401 	CALL	GETSYM
+***** ERROR:  Invalid operand
+0A35 B5 26                 1402 	MOV	CL,20
+***** ERROR:  Invalid operand
+0A37 8A C2                 1403 	CMP	AL,FREG
+***** ERROR:  Invalid operand
+0A39 02 C0                 1404 	JNZ	ERRJ4
+***** ERROR:  Invalid operand
+0A3B 0A C5                 1405 	POP	AX
+***** ERROR:  Invalid operand
+0A3D                       1406 	POP	BX
+***** ERROR:  Illegal character in label or opcode
+0A3D E8 8F F8              1407 	XOR	AL,2		;Flip "POP" bit
+***** ERROR:  Invalid operand
+0A40 3C 00                 1408 	AND	AL,0FBH		;Reset direction bit to ST(0)
+***** ERROR:  Invalid operand
+0A42 E9 C4 FD              1409 	OR	BL,BL		;Is first register ST(0)?
+***** ERROR:  Invalid operand
+0A45 3C 03                 1410 	JZ	ST0DEST
+***** ERROR:  Invalid operand
+0A47 E9 C6 FD              1411 	XCHG	DX,BX
+***** ERROR:  Invalid operand
+0A4A 3C 04                 1412 	OR	BL,BL		;One of these must be ST(0)
+***** ERROR:  Invalid operand
+0A4C B1 14                 1413 	JNZ	ERRJ4
+***** ERROR:  Invalid operand
+0A4E                       1414 	XOR	AL,4		;Flip direction
+***** ERROR:  Illegal character in label or opcode
+0A4E A2 59 13              1415 	JMPS	PUTREG
+***** ERROR:  Invalid operand
+0A51 E8 DA F9              1416 ST0DEST:
+***** ERROR:  Invalid operand
+0A54 E8 89 F8              1417 	TEST	AL,2		;Is POP bit set?
+***** ERROR:  Invalid operand
+0A57 3C 2C                 1418 	JNZ	ERRJ4		;Don't allow destination ST(0) then pop
+***** ERROR:  Invalid operand
+0A59 75 00                 1419 PUTREG:
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+0A5B EB 00                 1420 	AND	AH,0F8H		;Zero out register field
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+0A5D 3C 02                 1421 	OR	AH,DL
+***** ERROR:  Invalid operand
+0A5F 8B 1E 00 00           1422 	OR	AH,0C0H
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+0A63 80 CB 80              1423 	PUSH	AX
+***** ERROR:  Invalid operand
+0A66 89 1E 00 00           1424 	CALL	GETSYM		;Get to next symbol
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+0A6A 0A C0                 1425 	POP	AX
+***** ERROR:  Invalid operand
+0A6C E9 3C FD              1426 	JMPS	NOOPS
+***** ERROR:  Invalid operand
+0A6F                       1427 
+***** ERROR:  Illegal character in label or opcode
+0A6F 0B DB                 1428 NOOPCHK:
+***** ERROR:  Invalid operand
+0A71 FE 06 00 00           1429 	XCHG	AX,CX
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+0A75                       1430 	TEST	AL,80H		;Is no operands OK?
+***** ERROR:  Illegal character in label or opcode
+0A75                       1431 	MOV	CL,20
+***** ERROR:  Illegal character in label or opcode
+0A75 FE 06 62 13           1432 	JNZ	ERRJ4
+***** ERROR:  Invalid operand
+0A79 32 C0                 1433 NOOPS:
+***** ERROR:  Invalid operand
+0A7B E8 97 F7              1434 ;First test for FDIV or FSUB and reverse "R" bit if "D" bit is set
+***** ERROR:  Invalid operand
+0A7E 74 23                 1435 	PUSH	AX
+***** ERROR:  Invalid operand
+0A80 72 00                 1436 	AND	AX,0E005H
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+0A82 BE 00 00              1437 	CMP	AX,0E004H
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+0A85 8A 0D                 1438 	POP	AX
+***** ERROR:  Invalid operand
+0A87 F3                    1439 	JNZ	NOREV
+***** ERROR:  Invalid operand
+0A88 74 0A                 1440 	XOR	AH,8		;Reverse "R" bit
+***** ERROR:  Invalid operand
+0A8A BE D2 12              1441 NOREV:
+***** ERROR:  Invalid operand
+0A8D FE C1                 1442 	AND	AL,7
+***** ERROR:  Invalid operand
+0A8F A6                    1443 	OR	AL,0D8H		;ESC hook
+***** ERROR:  Invalid operand
+0A90 FE 06 62 13           1444 	CALL	PUT
+***** ERROR:  Invalid operand
+0A94                       1445 	MOV	AL,AH
+***** ERROR:  Illegal character in label or opcode
+0A94                       1446 	JMP	PUT
+***** ERROR:  Illegal character in label or opcode
+0A94 FE 0E 62 13           1447 
+***** ERROR:  Invalid operand
+0A98                       1448 BADFLAG:
+***** ERROR:  Invalid operand
+0A98                       1449 	MOV	CL,20H
+***** ERROR:  Illegal character in label or opcode
+0A98 A0 00 00              1450 ERRJ4:	JMP	ERROR
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+0A9B FE C8                 1451 
+***** ERROR:  Invalid operand
+0A9D A2 00 00              1452 MEMOP:
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+0AA0                       1453 	PUSH	CX		;Save opcode
+***** ERROR:  Illegal character in label or opcode
+0AA0 E9 70 F7              1454 	CALL	GETOP1		;Get memory operand
+***** ERROR:  Invalid operand
+0AA3                       1455 	CMP	AL,UNDEFID	;Is it?
+0AA3                       1456 	MOV	CL,20
+0AA3                       1457 	JNZ	ERRJ4
+0AA3                       1458 	POP	AX
+0AA3                       1459 	TEST	AL,20H		;Does it have memory format field?
+0AA3                       1460 	JNZ	GETFORMAT
+***** ERROR:  Illegal character in label or opcode
+0AA3                       1461 	TEST	AL,8		;Check if any memory operand legal
+***** ERROR:  Illegal character in label or opcode
+0AA3 B2 04                 1462 	JZ	ERRJ4
+***** ERROR:  Invalid operand
+0AA5 B5 FF                 1463 	TEST	AL,10H		;Check for 2-op arithmetic
+***** ERROR:  Invalid operand
+0AA7 E8 D2 FC              1464 	JNZ	PUTMEM		;If not, just use as plain memory op
+***** ERROR:  Invalid operand
+0AAA 75 00                 1465 GETFORMAT:
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+0AAC C6 06 00 00 FB        1466 	AND	AL,0F9H		;Zero memory format bits
+***** ERROR:  Undefined label
+0AB1 C7 06 6A 13 6C 13     1467 	MOV	CL,[FLAG]
+***** ERROR:  Invalid operand
+0AB7 33 C0                 1468 	DEC	CL		;Must now be in range 0-3
+***** ERROR:  Invalid operand
+0AB9 A3 FA 12              1469 	JL	BADFLAG
+***** ERROR:  Invalid operand
+0ABC C7 06 00 00 00 01     1470 	MOV	CH,AL		;Save opcode byte
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+0AC2 B4 00                 1471 	SHR	AL		;Put format bits in bits 2 & 3
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+0AC4 33 C0                 1472 	AND	AL,0CH
+***** ERROR:  Invalid operand
+0AC6 A2 7C 00              1473 	OR	AL,CL		;Combine format bits with flag
+0AC9 C7 06 6A 00 00 00     1474 	MOV	BX,FORMATTAB
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+0ACF B5 01                 1475 	XLAT
+***** ERROR:  Invalid operand
+0AD1                       1476 	OR	AL,AL		;Valid combination?
+***** ERROR:  Illegal character in label or opcode
+0AD1 BF 6C 13              1477 	JS	BADFLAG
+0AD4 32 C0                 1478 	OR	AH,AL		;Possibly set new bits in second byte
+***** ERROR:  Invalid operand
+0AD6 A2 5B 13              1479 	OR	AL,CH		;Set memory format bits
+0AD9                       1480 PUTMEM:
+***** ERROR:  Illegal character in label or opcode
+0AD9 D0 E1                 1481 	AND	AL,7
+0ADB FE CD                 1482 	OR	AL,0D8H
+0ADD 75 02                 1483 	CALL	PUT
+***** ERROR:  Invalid operand
+0ADF 8A C8                 1484 	MOV	AL,AH
+***** ERROR:  Invalid operand
+0AE1                       1485 	AND	AL,38H
+***** ERROR:  Illegal character in label or opcode
+0AE1 D0 E1                 1486 	OR	AL,DL		;Combine addressing mode
+0AE3 70 03                 1487 	JMP	PUTADD
+***** ERROR:  Invalid operand
+0AE5 72 3E                 1488 
+***** ERROR:  Invalid operand
+0AE7 AA                    1489 FORMATTAB:
+***** ERROR:  Invalid operand
+0AE8                       1490 ;There are 16 entries in this table. The 4-bit index is built like this:
+***** ERROR:  Illegal character in label or opcode
+0AE8                       1491 ;	Bit 3		0 for normal memory ops, 1 if extended is OK
+***** ERROR:  Illegal character in label or opcode
+0AE8                       1492 ;	Bit 2		0 for integer, 1 for real
+0AE8 AD                    1493 ;	Bit 0 & 1	Flag: 00=W, 01=S, 10=L, 11=T
+0AE9 93                    1494 ;
+***** ERROR:  Invalid operand
+0AEA 03 47 01              1495 ;The entries in the table are used as two 3-bit fields. Bits 0-2 are ORed
+0AED 82 3F 00              1496 ;into the first byte of the opcode for the Memory Format field. Bits 3-6
+0AF0 75 00                 1497 ;are ORed into the second byte to modify the opcode for extended operands.
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+0AF2 33 C0                 1498 ;If bit 7 is set, then that combination is illegal.
+***** ERROR:  Invalid operand
+0AF4 0A C9                 1499 
+0AF6 78 02                 1500 	DB	6,2,80H,80H	;Normal integers
+***** ERROR:  Invalid operand
+0AF8 EB DF                 1501 	DB	80H,0,4,80H	;Normal reals
+***** ERROR:  Invalid operand
+0AFA                       1502 	DB	6,2,2EH,80H	;Extended integers
+***** ERROR:  Illegal character in label or opcode
+0AFA 8B D0                 1503 	DB	80H,0,4,2BH	;Extended reals
+***** ERROR:  Invalid operand
+0AFC 3B C2                 1504 
+0AFE 74 00                 1505 GRP1:
+***** ERROR:  Undefined label
+0B00 F6 D4                 1506 	MOV	CX,8A09H
+0B02 3A E6                 1507 	CALL	MROPS
+***** ERROR:  Invalid operand
+0B04                       1508 	MOV	CX,0C6H
+0B04 81 FF 6D 13           1509 	MOV	AL,BH
+0B08 75 00                 1510 	CMP	AL,UNDEFID
+***** ERROR:  Undefined label
+0B0A A0 6C 13              1511 	JNZ	L0006
+0B0D 3C EB                 1512 	CALL	STIMM
+0B0F 74 0A                 1513 L0006:	
+***** ERROR:  Invalid operand
+0B11 3C E0                 1514 	AND	AL,1
+0B13 74 06                 1515 	JZ	BYTIMM
+***** ERROR:  Invalid operand
+0B15 3C 70                 1516 	MOV	AL,0B8H
+0B17 8A C2                 1517 	OR	AL,BL
+0B19 75 00                 1518 	CALL	PUT
+***** ERROR:  Undefined label
+0B1B                       1519 	JMP	PUTWOR
+***** ERROR:  Illegal character in label or opcode
+0B1B C6 06 5B 13 65        1520 
+0B20 EB 00                 1521 BYTIMM:
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+0B22 E9 E5 00              1522 	MOV	AL,0B0H
+***** ERROR:  Invalid operand
+0B25                       1523 	OR	AL,BL
+***** ERROR:  Illegal character in label or opcode
+0B25 3C FF                 1524 	CALL	PUT
+0B27 74 F9                 1525 PUTBJ:	JMP	PUTBYT
+***** ERROR:  Invalid operand
+0B29 77 38                 1526 
+***** ERROR:  Invalid operand
+0B2B 56                    1527 IMMED:
+***** ERROR:  Invalid operand
+0B2C 8A 26 65 13           1528 	MOV	AL,BH
+***** ERROR:  Invalid operand
+0B30 0A 06 5B 13           1529 	CMP	AL,UNDEFID
+0B34 74 00                 1530 	JZ	STIMM
+***** ERROR:  Invalid operand
+0B36                       1531 	MOV	AL,BL
+***** ERROR:  Illegal character in label or opcode
+0B36 88 26 65 13           1532 	OR	AL,AL
+***** ERROR:  Invalid operand
+0B3A E8 8E 00              1533 	JZ	RET
+0B3D BE 6C 13              1534 	MOV	AL,BH
+***** ERROR:  Invalid operand
+0B40 74 00                 1535 	CALL	IMM
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+0B42 AC                    1536 	OR	AL,0C0H
+***** ERROR:  Invalid operand
+0B43 E2 00                 1537 	CALL	PUT
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+0B45 B0 00                 1538 FINIMM:
+***** ERROR:  Invalid operand
+0B47 B9 07 00              1539 	MOV	AL,CL
+0B4A 2A C8                 1540 	POP	CX
+***** ERROR:  Invalid operand
+0B4C 74 06                 1541 	TEST	AL,1
+***** ERROR:  Invalid operand
+0B4E E8 86 00              1542 	JZ	PUTBJ
+***** ERROR:  Invalid operand
+0B51 E8 83 00              1543 	CMP	AL,83H
+***** ERROR:  Invalid operand
+0B54                       1544 	JZ	PUTBJ
+***** ERROR:  Illegal character in label or opcode
+0B54 E8 2A 00              1545 	JMP	PUTWOR
+***** ERROR:  Invalid operand
+0B57 E8 76 01              1546 
+***** ERROR:  Invalid operand
+0B5A E8 73 01              1547 STIMM:
+***** ERROR:  Invalid operand
+0B5D 59                    1548 	MOV	AL,[FLAG]
+***** ERROR:  Invalid operand
+0B5E 0A C0                 1549 	CALL	IMM
+***** ERROR:  Invalid operand
+0B60 E9 6E FF              1550 	CALL	PUTADD
+***** ERROR:  Invalid operand
+0B63                       1551 	JP	FINIMM
+***** ERROR:  Illegal character in label or opcode
+0B63 A2 00 00              1552 
+***** ERROR:  Undefined label
+0B66 AD                    1553 IMM:
+0B67 A3 00 00              1554 	AND	AL,1
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+0B6A                       1555 	OR	AL,CL
+***** ERROR:  Illegal character in label or opcode
+0B6A                       1556 	MOV	CL,AL
+***** ERROR:  Illegal character in label or opcode
+0B6A 8B 16 00 00           1557 	CALL	PUT
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+0B6E 74 09                 1558 	MOV	AL,CH
+***** ERROR:  Invalid operand
+0B70 74 0B                 1559 	AND	AL,38H
+***** ERROR:  Invalid operand
+0B72                       1560 	OR	AL,BL
+0B72 01 16 FA 12           1561 	RET
+***** ERROR:  Invalid operand
+0B76 E9 58 FF              1562 
+***** ERROR:  Invalid operand
+0B79                       1563 PUT:
+***** ERROR:  Illegal character in label or opcode
+0B79                       1564 ;Save byte in AL as pure code, with intermediate code bits 00. AL and
+0B79 89 16 FA 12           1565 ;DI destroyed, no other registers affected.
+***** ERROR:  Invalid operand
+0B7D                       1566 	PUSH	BX
+***** ERROR:  Illegal character in label or opcode
+0B7D                       1567 	PUSH	CX
+***** ERROR:  Illegal character in label or opcode
+0B7D                       1568 	MOV	CH,0		;Flag as pure code
+0B7D 89 16 00 00           1569 	CALL	GEN
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+0B81                       1570 	POP	CX
+***** ERROR:  Illegal character in label or opcode
+0B81                       1571 	POP	BX
+***** ERROR:  Illegal character in label or opcode
+0B81                       1572 	RET
+0B81                       1573 
+0B81                       1574 GEN:
+0B81                       1575 ;Save byte of code in AL, given intermediate code bits in bits 7&8 of CH.
+0B81 B0 FF                 1576 	CALL	PUTINC		;Save it and bump code pointer
+***** ERROR:  Invalid operand
+0B83 0A C0                 1577 GEN1:
+***** ERROR:  Invalid operand
+0B85 A1 00 00              1578 	MOV	AL,[RELOC]
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+0B88 A3 00 00              1579 	RCL	CH
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+0B8B E8 19 00              1580 	RCL	AL
+***** ERROR:  Invalid operand
+0B8E E8 46 00              1581 	RCL	CH
+***** ERROR:  Invalid operand
+0B91 3C 5A                 1582 	RCL	AL
+***** ERROR:  Invalid operand
+0B93 56                    1583 	MOV	[RELOC],AL
+0B94                       1584 	MOV	BX,BCOUNT
+***** ERROR:  Illegal character in label or opcode
+0B94 E8 7E F6              1585 	DEC	B,[BX]
+***** ERROR:  Invalid operand
+0B97 3C 0A                 1586 	JNZ	RET
+0B99 75 F9                 1587 	MOV	B,[BX],4
+***** ERROR:  Invalid operand
+0B9B                       1588 	MOV	BX,RELOC
+***** ERROR:  Invalid operand
+0B9B                       1589 	MOV	AL,[BX]
+***** ERROR:  Illegal character in label or opcode
+0B9B A1 00 00              1590 	MOV	B,[BX],0
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+0B9E                       1591 	MOV	DI,[IY]
+***** ERROR:  Illegal character in label or opcode
+0B9E 50                    1592 	MOV	[DI],AL
+***** ERROR:  Invalid operand
+0B9F 58                    1593 	MOV	BX,[CODE]
+***** ERROR:  Invalid operand
+0BA0 E8 04 00              1594 	MOV	[IY],BX
+***** ERROR:  Invalid operand
+0BA3 B0 0D                 1595 	INC	BX
+***** ERROR:  Invalid operand
+0BA5 B0 0A                 1596 	MOV	[CODE],BX
+***** ERROR:  Invalid operand
+0BA7                       1597 	RET
+***** ERROR:  Illegal character in label or opcode
+0BA7                       1598 
+***** ERROR:  Illegal character in label or opcode
+0BA7 33 D2                 1599 PUTINC:
+***** ERROR:  Invalid operand
+0BA9 F7 F7                 1600 	INC	[PC]
+***** ERROR:  Invalid operand
+0BAB 75 00                 1601 PUTCD:
+***** ERROR:  Invalid operand
+0BAD                       1602 	MOV	DI,[CODE]
+***** ERROR:  Illegal character in label or opcode
+0BAD 04 30                 1603 	STOB
+***** ERROR:  Invalid operand
+0BAF 92                    1604 	MOV	[CODE],DI
+***** ERROR:  Invalid operand
+0BB0 F6 F3                 1605 	RET
+***** ERROR:  Invalid operand
+0BB2 E8 09 00              1606 
+0BB5 E8 0B 00              1607 PUTWOR:
+0BB8 8A C3                 1608 ;Save the word value described by [DLABEL] and [DATA] as code. If defined,
+***** ERROR:  Invalid operand
+0BBA B7 00                 1609 ;two bytes of pure code will be produced. Otherwise, appropriate intermediate
+0BBC EB 05                 1610 ;code will be generated.
+***** ERROR:  Invalid operand
+0BBE                       1611 	PUSH	CX
+***** ERROR:  Illegal character in label or opcode
+0BBE D4 0A                 1612 	MOV	CH,80H
+0BC0 0D 30 30              1613 	PUSH	DX
+0BC3                       1614 	PUSH	BX
+***** ERROR:  Illegal character in label or opcode
+0BC3 86 C4                 1615 	JP	PUTBW
+***** ERROR:  Invalid operand
+0BC5 74 00                 1616 
+***** ERROR:  Invalid operand
+0BC7                       1617 PUTBYT:
+***** ERROR:  Illegal character in label or opcode
+0BC7 2A C7                 1618 ;Same as PUTWOR, above, but for byte value.
+0BC9 EB 0C                 1619 	PUSH	CX
+***** ERROR:  Invalid operand
+0BCB                       1620 	MOV	CH,40H
+***** ERROR:  Illegal character in label or opcode
+0BCB C6 06 00 00 00        1621 	PUSH	DX
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+0BD0 8A C7                 1622 	PUSH	BX
+***** ERROR:  Invalid operand
+0BD2 8A C3                 1623 	MOV	BX,[DLABEL]
+***** ERROR:  Invalid operand
+0BD4 E8 2C 00              1624 	MOV	AL,BH
+***** ERROR:  Invalid operand
+0BD7                       1625 	OR	AL,BL
+***** ERROR:  Illegal character in label or opcode
+0BD7 50                    1626 	JNZ	PUTBW
+***** ERROR:  Invalid operand
+0BD8 24 7F                 1627 	MOV	BX,[DATA]
+***** ERROR:  Invalid operand
+0BDA F6 06 65 13 03        1628 	OR	AL,BH
+0BDF 74 02                 1629 	JZ	PUTBW
+***** ERROR:  Invalid operand
+0BE1 CD 21                 1630 	INC	BH
+0BE3                       1631 	JZ	PUTBW
+***** ERROR:  Illegal character in label or opcode
+0BE3 F6 06 65 13 04        1632 	MOV	CL,31
+0BE8 74 02                 1633 	JMP	ERROR
+***** ERROR:  Invalid operand
+0BEA CD 21                 1634 PUTBW:
+0BEC                       1635 	MOV	DX,[DLABEL]
+***** ERROR:  Illegal character in label or opcode
+0BEC 8A C2                 1636 	MOV	BX,[DATA]
+***** ERROR:  Invalid operand
+0BEE F6 06 65 13 80        1637 PUTCHK:
+0BF3 74 00                 1638 	OR	DX,DX
+***** ERROR:  Invalid operand
+0BF5                       1639 	JZ	NOUNDEF
+***** ERROR:  Illegal character in label or opcode
+0BF5 58                    1640 	MOV	AL,DL
+***** ERROR:  Invalid operand
+0BF6                       1641 	CALL	PUTCD
+***** ERROR:  Illegal character in label or opcode
+0BF6                       1642 	MOV	AL,DH
+***** ERROR:  Illegal character in label or opcode
+0BF6 57                    1643 	CALL	PUTCD
+***** ERROR:  Invalid operand
+0BF7 AA                    1644 	MOV	AL,BL
+***** ERROR:  Invalid operand
+0BF8 75 05                 1645 	CALL	PUTINC
+***** ERROR:  Invalid operand
+0BFA 51                    1646 	MOV	AL,BH
+***** ERROR:  Invalid operand
+0BFB E8 6A 01              1647 	TEST	CH,080H
+***** ERROR:  Invalid operand
+0BFE 59                    1648 	JZ	SMPUT
+***** ERROR:  Invalid operand
+0BFF                       1649 	CALL	GEN
+***** ERROR:  Illegal character in label or opcode
+0BFF 89 3E 6A 13           1650 	JP	PRET
+***** ERROR:  Invalid operand
+0C03                       1651 SMPUT:
+***** ERROR:  Invalid operand
+0C03                       1652 	CALL	PUTCD
+***** ERROR:  Illegal character in label or opcode
+0C03 50                    1653 	CALL	GEN1
+***** ERROR:  Invalid operand
+0C04 E8 D0 FF              1654 PRET:
+***** ERROR:  Invalid operand
+0C07 E8 74 01              1655 	POP	BX
+***** ERROR:  Invalid operand
+0C0A                       1656 	POP	DX
+***** ERROR:  Illegal character in label or opcode
+0C0A                       1657 	POP	CX
+***** ERROR:  Illegal character in label or opcode
+0C0A 80 0E 65 13 01        1658 	RET
+***** ERROR:  Invalid operand
+0C0F BB 00 00              1659 
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+0C12 2B 06 56 13           1660 NOUNDEF:
+0C16 E8 85 FF              1661 	MOV	AL,BL
+***** ERROR:  Invalid operand
+0C19 A1 56 13              1662 	MOV	CL,BH
+***** ERROR:  Invalid operand
+0C1C E8 7F FF              1663 	PUSH	CX
+***** ERROR:  Invalid operand
+0C1F A0 D5 12              1664 	MOV	CH,0
+***** ERROR:  Invalid operand
+0C22 74 00                 1665 	CALL	GEN
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+0C24 3C FB                 1666 	POP	CX
+***** ERROR:  Invalid operand
+0C26 E8 00 00              1667 	MOV	AL,CL
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+0C29 B0 3A                 1668 	TEST	CH,080H
+***** ERROR:  Invalid operand
+0C2B B5 0A                 1669 	MOV	CH,0
+***** ERROR:  Invalid operand
+0C2D 51                    1670 	JZ	PRET
+***** ERROR:  Invalid operand
+0C2E E8 2F 01              1671 	CALL	GEN
+***** ERROR:  Invalid operand
+0C31 FE CD                 1672 	JP	PRET
+***** ERROR:  Invalid operand
+0C33 B0 0D                 1673 
+***** ERROR:  Invalid operand
+0C35 B0 0A                 1674 PUTADD:
+***** ERROR:  Invalid operand
+0C37 B0 1A                 1675 ;Save complete addressing mode. Addressing mode is in AL; if this is a register
+***** ERROR:  Invalid operand
+0C39 E8 00 00              1676 ;operation (>=C0), then the one byte will be saved as pure code. Otherwise,
+***** ERROR:  Undefined label
+0C3C BA D5 12              1677 ;the details of the addressing mode will be investigated and the optional one-
+***** ERROR:  Invalid operand
+0C3F CD 21                 1678 ;or two-byte displacement will be added, as described by [ADDR] and [ALABEL].
+***** ERROR:  Invalid operand
+0C41 A0 00 00              1679 	PUSH	CX
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+0C44 75 00                 1680 	PUSH	DX
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+0C46 0A C0                 1681 	PUSH	BX
+0C48 75 00                 1682 	MOV	CH,0
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+0C4A A2 65 13              1683 	MOV	CL,AL
+***** ERROR:  Invalid operand
+0C4D BB 00 00              1684 	CALL	GEN		;Save the addressing mode as pure code
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+0C50 8B 16 00 00           1685 	MOV	AL,CL
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+0C54 0A C2                 1686 	MOV	CH,80H
+***** ERROR:  Invalid operand
+0C56 C6 06 58 13 05        1687 	AND	AL,0C7H
+0C5B 8B 1E 56 13           1688 	CMP	AL,6
+***** ERROR:  Invalid operand
+0C5F E8 13 00              1689 	JZ	TWOBT		;Direct address?
+***** ERROR:  Invalid operand
+0C62 F6 06 65 13 80        1690 	AND	AL,0C0H
+0C67 74 09                 1691 	JZ	PRET		;Indirect through reg, no displacement?
+***** ERROR:  Invalid operand
+0C69 E8 8A FF              1692 	CMP	AL,0C0H
+0C6C 8B 3E 6A 13           1693 	JZ	PRET		;Register to register operation?
+***** ERROR:  Invalid operand
+0C70 B4 10                 1694 	MOV	CH,AL		;Save whether one- or two-byte displacement
+***** ERROR:  Invalid operand
+0C72 E9 8B F3              1695 TWOBT:
+***** ERROR:  Invalid operand
+0C75                       1696 	MOV	BX,[ADDR]
+***** ERROR:  Illegal character in label or opcode
+0C75 87 DA                 1697 	MOV	DX,[ALABEL]
+***** ERROR:  Invalid operand
+0C77 8A 17                 1698 	JP	PUTCHK
+***** ERROR:  Invalid operand
+0C79 43                    1699 
+***** ERROR:  Invalid operand
+0C7A 8B 17                 1700 GRP2:
+***** ERROR:  Invalid operand
+0C7C 74 00                 1701 	CALL	GETOP
+***** ERROR:  Invalid operand
+0C7E                       1702 	MOV	CX,0FF30H
+***** ERROR:  Illegal character in label or opcode
+0C7E 5B                    1703 	CMP	AL,UNDEFID
+***** ERROR:  Invalid operand
+0C7F 43                    1704 	JZ	PMEM
+***** ERROR:  Invalid operand
+0C80 04 18                 1705 	MOV	CH,50H
+***** ERROR:  Invalid operand
+0C82 D0 E8                 1706 	CMP	AL,XREG
+***** ERROR:  Invalid operand
+0C84 8A C8                 1707 	JZ	PXREG
+***** ERROR:  Invalid operand
+0C86 80 E1 01              1708 	MOV	CH,6
+0C89 D0 E8                 1709 	CMP	AL,SREG
+0C8B 28 06 58 13           1710 	JNZ	$+5
+***** ERROR:  Invalid operand
+0C8F 2C 05                 1711 	JMP	PACKREG
+***** ERROR:  Invalid operand
+0C91 A2 58 13              1712 	MOV	CL,20
+***** ERROR:  Invalid operand
+0C94                       1713 	JMP	ERROR
+***** ERROR:  Illegal character in label or opcode
+0C94 8A 07                 1714 
+***** ERROR:  Invalid operand
+0C96 E8 3E FF              1715 PMEM:
+***** ERROR:  Invalid operand
+0C99 75 F9                 1716 	MOV	AL,CH
+***** ERROR:  Invalid operand
+0C9B                       1717 	CALL	PUT
+***** ERROR:  Illegal character in label or opcode
+0C9B B0 09                 1718 	MOV	AL,CL
+***** ERROR:  Invalid operand
+0C9D E2 FC                 1719 	OR	AL,DL
+***** ERROR:  Invalid operand
+0C9F 43                    1720 	JMP	PUTADD
+***** ERROR:  Invalid operand
+0CA0 8A 47 04              1721 
+***** ERROR:  Invalid operand
+0CA3 8A 47 03              1722 PXREG:
+***** ERROR:  Invalid operand
+0CA6 82 3E 58 13 00        1723 	MOV	AL,CH
+0CAB 74 03                 1724 	OR	AL,DL
+***** ERROR:  Invalid operand
+0CAD E8 27 FF              1725 	JMP	PUT
+***** ERROR:  Invalid operand
+0CB0                       1726 
+***** ERROR:  Illegal character in label or opcode
+0CB0 E8 00 00              1727 GRP3:
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+0CB3                       1728 	CALL	GETOP
+***** ERROR:  Illegal character in label or opcode
+0CB3 5B                    1729 	PUSH	DX
+***** ERROR:  Invalid operand
+0CB4 0B D2                 1730 	CALL	GETOP2
+***** ERROR:  Invalid operand
+0CB6                       1731 	POP	BX
+***** ERROR:  Invalid operand
+0CB6                       1732 	MOV	CX,8614H
+***** ERROR:  Illegal character in label or opcode
+0CB6 A2 61 13              1733 	MOV	AL,SREG
+***** ERROR:  Invalid operand
+0CB9 51                    1734 	CMP	AL,BH
+***** ERROR:  Invalid operand
+0CBA 52                    1735 	JZ	ERR6
+***** ERROR:  Invalid operand
+0CBB 5A                    1736 	CMP	AL,DH
+***** ERROR:  Invalid operand
+0CBC FE 07                 1737 	JZ	ERR6
+***** ERROR:  Invalid operand
+0CBE 3C 08                 1738 	MOV	AL,CONST
+***** ERROR:  Invalid operand
+0CC0 C6 07 01              1739 	CMP	AL,BH
+***** ERROR:  Invalid operand
+0CC3 B0 20                 1740 	JZ	ERR6
+***** ERROR:  Invalid operand
+0CC5                       1741 	CMP	AL,DH
+***** ERROR:  Illegal character in label or opcode
+0CC5 E8 0F FF              1742 	JZ	ERR6
+***** ERROR:  Invalid operand
+0CC8 75 FB                 1743 	MOV	AL,UNDEFID
+***** ERROR:  Invalid operand
+0CCA 58                    1744 	CMP	AL,BH
+***** ERROR:  Invalid operand
+0CCB 59                    1745 	JZ	EXMEM
+***** ERROR:  Invalid operand
+0CCC FF 06 00 00           1746 	CMP	AL,DH
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+0CD0                       1747 	JZ	EXMEM1
+***** ERROR:  Invalid operand
+0CD0                       1748 	MOV	AL,BH
+***** ERROR:  Illegal character in label or opcode
+0CD0 0A C0                 1749 	CMP	AL,DH
+0CD2 74 00                 1750 	MOV	CL,22
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+0CD4 50                    1751 	JNZ	ERR6
+***** ERROR:  Invalid operand
+0CD5 E8 1A 00              1752 	CMP	AL,XREG
+***** ERROR:  Invalid operand
+0CD8                       1753 	JZ	L0008
+0CD8 BF 8A 10              1754 	CALL	RR1
+***** ERROR:  Invalid operand
+0CDB                       1755 L0008:			;RR1 never returns
+***** ERROR:  Illegal character in label or opcode
+0CDB AE                    1756 	MOV	AL,BL
+0CDC 76 07                 1757 	OR	AL,AL
+0CDE 93                    1758 	JZ	EXACC
+0CDF                       1759 	XCHG	DX,BX
+***** ERROR:  Illegal character in label or opcode
+0CDF AE                    1760 	MOV	AL,BL
+0CE0 77 FD                 1761 	OR	AL,AL
+0CE2 93                    1762 	MOV	AL,BH
+0CE3 EB F6                 1763 	JZ	EXACC
+0CE5                       1764 	CALL	RR1
+***** ERROR:  Illegal character in label or opcode
+0CE5                       1765 EXACC:
+***** ERROR:  Illegal character in label or opcode
+0CE5 8B DF                 1766 	MOV	AL,90H
+0CE7 74 06                 1767 	OR	AL,DL
+0CE9 E8 17 FF              1768 	JMP	PUT
+0CEC E9 00 00              1769 
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+0CEF                       1770 EXMEM:
+***** ERROR:  Illegal character in label or opcode
+0CEF E8 00 00              1771 	XCHG	DX,BX
+***** ERROR:  Invalid operand
+0CF2                       1772 EXMEM1:
+***** ERROR:  Illegal character in label or opcode
+0CF2                       1773 	CMP	AL,BH
+***** ERROR:  Illegal character in label or opcode
+0CF2 8A 07                 1774 	JZ	ERR6
+***** ERROR:  Invalid operand
+0CF4 0A C0                 1775 	MOV	CL,1	;Flag word as OK
+***** ERROR:  Invalid operand
+0CF6 43                    1776 	CALL	NOTAC	;NOTAC never returns
+***** ERROR:  Invalid operand
+0CF7                       1777 ERR6:	JMP	ERROR
+***** ERROR:  Illegal character in label or opcode
+0CF7                       1778 
+***** ERROR:  Illegal character in label or opcode
+0CF7 8A D0                 1779 GRP4:
+***** ERROR:  Invalid operand
+0CF9 80 E2 7F              1780 	PUSH	AX
+***** ERROR:  Invalid operand
+0CFC                       1781 	CALL	GETOP
+***** ERROR:  Illegal character in label or opcode
+0CFC E8 06 F3              1782 	POP	CX
+***** ERROR:  Invalid operand
+0CFF                       1783 	XCHG	CL,CH
+***** ERROR:  Illegal character in label or opcode
+0CFF                       1784 	CMP	AL,CONST
+***** ERROR:  Illegal character in label or opcode
+0CFF 82 3E D5 12 5A        1785 	JZ	FIXED
+***** ERROR:  Invalid operand
+0D04 50                    1786 	SUB	AL,XREG
+***** ERROR:  Invalid operand
+0D05 8B 1E 00 00           1787 	DEC	DL
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+0D09 42                    1788 	DEC	DL
+***** ERROR:  Invalid operand
+0D0A 3C FB                 1789 	OR	AL,DL
+***** ERROR:  Invalid operand
+0D0C 3B DA                 1790 	MOV	CL,20
+***** ERROR:  Invalid operand
+0D0E E8 00 00              1791 	JNZ	ERR6
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+0D11 B0 3A                 1792 	MOV	AL,CH
+***** ERROR:  Invalid operand
+0D13 B0 FC                 1793 	OR	AL,8
+***** ERROR:  Invalid operand
+0D15 32 C0                 1794 	JMP	PUT
+***** ERROR:  Invalid operand
+0D17 8B 1E 00 00           1795 FIXED:
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+0D1B E8 00 00              1796 	MOV	AL,CH
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+0D1E E8 00 00              1797 	CALL	PUT
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+0D21 E8 00 00              1798 	JMP	PUTBYT
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+0D24 E8 00 00              1799 
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+0D27 58                    1800 GRP5:
+***** ERROR:  Invalid operand
+0D28 8A E8                 1801 	PUSH	AX
+***** ERROR:  Invalid operand
+0D2A 02 07                 1802 	CALL	GETOP
+***** ERROR:  Invalid operand
+0D2C 8A C5                 1803 	MOV	CL,20
+***** ERROR:  Invalid operand
+0D2E E8 2F 00              1804 	CMP	AL,CONST
+***** ERROR:  Invalid operand
+0D31 E8 4A 00              1805 	JNZ	ERR6
+***** ERROR:  Invalid operand
+0D34 BB 00 00              1806 	MOV	BX,[DLABEL]
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+0D37 8A 07                 1807 	MOV	AL,BH
+***** ERROR:  Invalid operand
+0D39 75 00                 1808 	OR	AL,BL
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+0D3B 8B 3E 5C 13           1809 	MOV	CL,30
+***** ERROR:  Invalid operand
+0D3F E8 38 00              1810 	JNZ	ERR6
+***** ERROR:  Invalid operand
+0D42 8A C5                 1811 	MOV	BX,[DATA]
+***** ERROR:  Invalid operand
+0D44 AA                    1812 	POP	AX
+***** ERROR:  Invalid operand
+0D45 A2 00 00              1813 	OR	AL,AL
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+0D48 02 C5                 1814 	JZ	ORG
+***** ERROR:  Invalid operand
+0D4A E8 00 00              1815 	DEC	AL
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+0D4D E8 10 00              1816 	JZ	DSJ
+***** ERROR:  Invalid operand
+0D50 E8 0D 00              1817 	DEC	AL
+***** ERROR:  Invalid operand
+0D53                       1818 	JZ	EQU
+0D53 BA 00 00              1819 	DEC	AL
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+0D56 B4 1A                 1820 	JZ	$+5
+***** ERROR:  Invalid operand
+0D58 2B FA                 1821 	JMP	IF
+0D5A 8B CF                 1822 PUTOP:
+***** ERROR:  Invalid operand
+0D5C B4 28                 1823 	MOV	AL,-3
+***** ERROR:  Invalid operand
+0D5E 0A C0                 1824 	JP	NEWLOC
+***** ERROR:  Invalid operand
+0D60                       1825 ALIGN:
+***** ERROR:  Invalid operand
+0D60                       1826 	MOV	AL,[PC]
+***** ERROR:  Illegal character in label or opcode
+0D60 8B 3E 00 00           1827 	AND	AL,1
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+0D64 89 3E 00 00           1828 	JZ	RET
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+0D68                       1829 	MOV	BX,1
+***** ERROR:  Illegal character in label or opcode
+0D68                       1830 DSJ:
+***** ERROR:  Illegal character in label or opcode
+0D68 8B CF                 1831 	XCHG	DX,BX
+***** ERROR:  Invalid operand
+0D6A 8B FA                 1832 	MOV	BX,[PC]
+***** ERROR:  Invalid operand
+0D6C 74 00                 1833 	ADD	BX,DX
+***** ERROR:  Undefined label
+0D6E B4 1A                 1834 	MOV	[PC],BX
+***** ERROR:  Invalid operand
+0D70 BA 00 00              1835 	XCHG	DX,BX
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+0D73 CD 21                 1836 	MOV	AL,-4
+***** ERROR:  Invalid operand
+0D75 74 00                 1837 	JP	NEWLOC
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+0D77 BB 9A 12              1838 EQU:
+***** ERROR:  Invalid operand
+0D7A                       1839 	XCHG	DX,BX
+***** ERROR:  Illegal character in label or opcode
+0D7A                       1840 	MOV	BX,[LABPT]
+***** ERROR:  Illegal character in label or opcode
+0D7A D0 D8                 1841 	MOV	AL,BH
+***** ERROR:  Invalid operand
+0D7C D0 D8                 1842 	OR	AL,BL
+***** ERROR:  Invalid operand
+0D7E                       1843 	MOV	CL,34
+***** ERROR:  Illegal character in label or opcode
+0D7E 24 0F                 1844 	JZ	ERR7
+***** ERROR:  Invalid operand
+0D80 3C 3A                 1845 	MOV	[BX],DL
+***** ERROR:  Invalid operand
+0D82 04 07                 1846 	INC	BX
+***** ERROR:  Invalid operand
+0D84                       1847 	MOV	[BX],DH
+***** ERROR:  Illegal character in label or opcode
+0D84 00                    1848 	RET
+***** ERROR:  Invalid operand
+0D85                       1849 ORG:
+0D85                       1850 	MOV	[PC],BX
+***** ERROR:  Illegal character in label or opcode
+0D85                       1851 	MOV	AL,-2
+0D85                       1852 NEWLOC:
+0D85                       1853 	CALL	PUTCD
+0D85                       1854 	MOV	AL,BL
+***** ERROR:  Illegal character in label or opcode
+0D85                       1855 	CALL	PUTCD
+***** ERROR:  Illegal character in label or opcode
+0D85 07                    1856 	MOV	AL,BH
+***** ERROR:  Invalid operand
+0D86 00 00                 1857 	CALL	PUTCD
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+0D88 6E 64                 1858 	MOV	CH,0C0H
+***** ERROR:  Invalid operand
+0D8A 22                    1859 	JMP	GEN1
+***** ERROR:  Invalid operand
+0D8B 00 00                 1860 GRP6:
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+0D8D 61 61                 1861 	MOV	CH,AL
+***** ERROR:  Invalid operand
+0D8F 37                    1862 	MOV	CL,4
+***** ERROR:  Invalid operand
+0D90 75 07                 1863 	CALL	MROPS
+***** ERROR:  Invalid operand
+0D92 61 6D                 1864 	MOV	CL,23
+***** ERROR:  Invalid operand
+0D94 D4                    1865 ERR7:	JMP	ERROR
+***** ERROR:  Invalid operand
+0D95 00 00                 1866 GRP7:
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+0D97                       1867 	MOV	CH,AL
+***** ERROR:  Illegal character in label or opcode
+0D97 01                    1868 	MOV	CL,1
+***** ERROR:  Invalid operand
+0D98 7F 08                 1869 	CALL	MROPS
+***** ERROR:  Invalid operand
+0D9A                       1870 	MOV	CL,80H
+***** ERROR:  Illegal character in label or opcode
+0D9A 07                    1871 	MOV	DX,[DLABEL]
+***** ERROR:  Invalid operand
+0D9B 00 00                 1872 	MOV	AL,DH
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+0D9D 6C 63                 1873 	OR	AL,DL
+***** ERROR:  Invalid operand
+0D9F F8                    1874 	JNZ	ACCJ
+***** ERROR:  Invalid operand
+0DA0 75 07                 1875 	XCHG	DX,BX
+***** ERROR:  Invalid operand
+0DA2 6C 69                 1876 	MOV	BX,[DATA]
+***** ERROR:  Invalid operand
+0DA4 FA                    1877 	MOV	AL,BL
+***** ERROR:  Invalid operand
+0DA5 75 07                 1878 	CBW
+***** ERROR:  Invalid operand
+0DA7 62 77                 1879 	CMP	AX,BX
+***** ERROR:  Invalid operand
+0DA9 98                    1880 	XCHG	DX,BX
+***** ERROR:  Invalid operand
+0DAA 75 07                 1881 	JNZ	ACCJ
+***** ERROR:  Invalid operand
+0DAC                       1882 	OR	CL,002H
+***** ERROR:  Illegal character in label or opcode
+0DAC 03                    1883 ACCJ:	JMP	ACCIMM
+***** ERROR:  Invalid operand
+0DAD 39 09                 1884 GRP8:
+***** ERROR:  Invalid operand
+0DAF 6D 70 62              1885 	MOV	CL,AL
+***** ERROR:  Invalid operand
+0DB2 A6                    1886 	MOV	CH,0FEH
+***** ERROR:  Invalid operand
+0DB3 75 07                 1887 	JP	ONEOP
+***** ERROR:  Invalid operand
+0DB5                       1888 GRP9:
+***** ERROR:  Illegal character in label or opcode
+0DB5 02                    1889 	MOV	CL,AL
+***** ERROR:  Invalid operand
+0DB6 75 07                 1890 	MOV	CH,0F6H
+***** ERROR:  Invalid operand
+0DB8 6D 70 73 77           1891 ONEOP:
+***** ERROR:  Invalid operand
+0DBC A7                    1892 	PUSH	CX
+***** ERROR:  Invalid operand
+0DBD 05                    1893 	CALL	GETOP
+***** ERROR:  Invalid operand
+0DBE 4E 0A                 1894 ONE:
+***** ERROR:  Invalid operand
+0DC0 77                    1895 	MOV	CL,26
+***** ERROR:  Invalid operand
+0DC1 00                    1896 	CMP	AL,CONST
+***** ERROR:  Invalid operand
+0DC2 4E 0A                 1897 	JZ	ERR7
+***** ERROR:  Invalid operand
+0DC4 73                    1898 	CMP	AL,SREG
+***** ERROR:  Invalid operand
+0DC5 01                    1899 	MOV	CL,22
+***** ERROR:  Invalid operand
+0DC6 75 07                 1900 	JZ	ERR7
+***** ERROR:  Invalid operand
+0DC8                       1901 	POP	CX
+***** ERROR:  Illegal character in label or opcode
+0DC8 04                    1902 	CMP	AL,UNDEFID
+***** ERROR:  Invalid operand
+0DC9 00 00                 1903 	JZ	MOP
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+0DCB 69 76                 1904 	AND	AL,1
+***** ERROR:  Invalid operand
+0DCD 30                    1905 	JZ	ROP
+***** ERROR:  Invalid operand
+0DCE 75 07                 1906 	TEST	CL,001H
+***** ERROR:  Invalid operand
+0DD0 61 73                 1907 	JZ	ROP
+***** ERROR:  Invalid operand
+0DD2 2F                    1908 	MOV	AL,CL
+***** ERROR:  Invalid operand
+0DD3 01                    1909 	AND	AL,0F8H
+***** ERROR:  Invalid operand
+0DD4 75 07                 1910 	OR	AL,DL
+***** ERROR:  Invalid operand
+0DD6                       1911 	JMP	PUT
+***** ERROR:  Illegal character in label or opcode
+0DD6 01                    1912 MOP:
+***** ERROR:  Invalid operand
+0DD7 75 07                 1913 	MOV	AL,[FLAG]
+***** ERROR:  Invalid operand
+0DD9                       1914 	AND	AL,1
+***** ERROR:  Illegal character in label or opcode
+0DD9 03                    1915 	OR	AL,CH
+***** ERROR:  Invalid operand
+0DDA 65 08                 1916 	CALL	PUT
+***** ERROR:  Invalid operand
+0DDC 73 63                 1917 	MOV	AL,CL
+***** ERROR:  Invalid operand
+0DDE D8                    1918 	AND	AL,38H
+***** ERROR:  Invalid operand
+0DDF A3 0A                 1919 	OR	AL,DL
+***** ERROR:  Invalid operand
+0DE1                       1920 	JMP	PUTADD
+***** ERROR:  Illegal character in label or opcode
+0DE1 01                    1921 ROP:
+***** ERROR:  Invalid operand
+0DE2 98 0A                 1922 	OR	AL,CH
+***** ERROR:  Invalid operand
+0DE4                       1923 	CALL	PUT
+***** ERROR:  Illegal character in label or opcode
+0DE4 01                    1924 	MOV	AL,CL
+***** ERROR:  Invalid operand
+0DE5 75 07                 1925 	AND	AL,38H
+***** ERROR:  Invalid operand
+0DE7                       1926 	OR	AL,0C0H
+***** ERROR:  Illegal character in label or opcode
+0DE7 01                    1927 	OR	AL,DL
+***** ERROR:  Invalid operand
+0DE8 75 07                 1928 	JMP	PUT
+***** ERROR:  Invalid operand
+0DEA                       1929 GRP10:
+***** ERROR:  Illegal character in label or opcode
+0DEA 02                    1930 	MOV	CL,AL
+***** ERROR:  Invalid operand
+0DEB 51 08                 1931 	MOV	CH,0F6H
+***** ERROR:  Invalid operand
+0DED 66                    1932 	PUSH	CX
+***** ERROR:  Invalid operand
+0DEE 04                    1933 	CALL	GETOP
+***** ERROR:  Invalid operand
+0DEF 04                    1934 	MOV	CL,20
+***** ERROR:  Invalid operand
+0DF0 00 00                 1935 	MOV	AL,DL
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+0DF2 6E 62                 1936 	OR	AL,AL
+***** ERROR:  Invalid operand
+0DF4 E4                    1937 	JNZ	ERRJ1
+***** ERROR:  Invalid operand
+0DF5 51 08                 1938 	MOV	AL,DH
+***** ERROR:  Invalid operand
+0DF7 6E 74                 1939 	CMP	AL,XREG
+***** ERROR:  Invalid operand
+0DF9 CC                    1940 	JZ	G10
+***** ERROR:  Invalid operand
+0DFA 04                    1941 	CMP	AL,REG
+***** ERROR:  Invalid operand
+0DFB 00 00                 1942 ERRJ1:	JNZ	ERR8
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+0DFD 64 69 76              1943 G10:
+***** ERROR:  Invalid operand
+0E00 38                    1944 	PUSH	AX
+***** ERROR:  Invalid operand
+0E01 75 07                 1945 	CALL	GETOP
+***** ERROR:  Invalid operand
+0E03 6E 74 6F              1946 	POP	AX
+***** ERROR:  Invalid operand
+0E06 CE                    1947 	AND	AL,1
+***** ERROR:  Invalid operand
+0E07 0A                    1948 	MOV	[FLAG],AL
+***** ERROR:  Invalid operand
+0E08 B7 09                 1949 	MOV	AL,DH
+***** ERROR:  Invalid operand
+0E0A 7A                    1950 ONEJ:	JP	ONE
+***** ERROR:  Invalid operand
+0E0B 74                    1951 GRP11:
+***** ERROR:  Invalid operand
+0E0C B7 09                 1952 	CALL	PUT
+***** ERROR:  Invalid operand
+0E0E 6C                    1953 	MOV	AL,0AH
+***** ERROR:  Invalid operand
+0E0F 7C                    1954 	JMP	PUT
+***** ERROR:  Invalid operand
+0E10 B7 09                 1955 GRP12:
+***** ERROR:  Invalid operand
+0E12 61                    1956 	MOV	CL,AL
+***** ERROR:  Invalid operand
+0E13 77                    1957 	MOV	CH,0D0H
+***** ERROR:  Invalid operand
+0E14 B7 09                 1958 	PUSH	CX
+***** ERROR:  Invalid operand
+0E16 6F                    1959 	CALL	GETOP
+***** ERROR:  Invalid operand
+0E17 70                    1960 	MOV	AL,[SYM]
+***** ERROR:  Invalid operand
+0E18 B7 09                 1961 	CMP	AL,','
+***** ERROR:  Invalid operand
+0E1A 63                    1962 	MOV	AL,DH
+***** ERROR:  Invalid operand
+0E1B 72                    1963 	JNZ	ONEJ
+***** ERROR:  Invalid operand
+0E1C 11                    1964 	PUSH	DX
+***** ERROR:  Invalid operand
+0E1D 39 09                 1965 	CALL	GETOP
+***** ERROR:  Invalid operand
+0E1F 6E 7A                 1966 	SUB	AL,REG
+***** ERROR:  Invalid operand
+0E21 75                    1967 	MOV	CL,20
+***** ERROR:  Invalid operand
+0E22 B7 09                 1968 	DEC	DL
+***** ERROR:  Invalid operand
+0E24 6E 6C                 1969 	OR	AL,DL
+***** ERROR:  Invalid operand
+0E26 7D                    1970 	JNZ	ERR8
+***** ERROR:  Invalid operand
+0E27 B7 09                 1971 	POP	DX
+***** ERROR:  Invalid operand
+0E29 6E 62                 1972 	MOV	AL,DH
+***** ERROR:  Invalid operand
+0E2B 73                    1973 	POP	CX
+***** ERROR:  Invalid operand
+0E2C B7 09                 1974 	OR	CH,002H
+***** ERROR:  Invalid operand
+0E2E 6E 63                 1975 	PUSH	CX
+***** ERROR:  Invalid operand
+0E30 73                    1976 	JMP	ONE
+***** ERROR:  Invalid operand
+0E31 B7 09                 1977 GRP13:
+***** ERROR:  Invalid operand
+0E33 6C 65                 1978 	MOV	CH,AL
+***** ERROR:  Invalid operand
+0E35 7E                    1979 	MOV	CL,1
+***** ERROR:  Invalid operand
+0E36 B7 09                 1980 	CALL	MROPS
+***** ERROR:  Invalid operand
+0E38 62 65                 1981 	MOV	CL,80H
+***** ERROR:  Invalid operand
+0E3A 76                    1982 ACCIMM:
+***** ERROR:  Invalid operand
+0E3B B7 09                 1983 	CALL	IMMED
+***** ERROR:  Invalid operand
+0E3D 6E 70                 1984 	OR	CH,004H
+***** ERROR:  Invalid operand
+0E3F 7B                    1985 	AND	CH,0FDH
+***** ERROR:  Invalid operand
+0E40 B7 09                 1986 AIMM:
+***** ERROR:  Invalid operand
+0E42 6E 6F                 1987 	MOV	AL,BH
+***** ERROR:  Invalid operand
+0E44 71                    1988 	AND	AL,1
+***** ERROR:  Invalid operand
+0E45 B7 09                 1989 	LAHF
+***** ERROR:  Invalid operand
+0E47                       1990 	PUSH	AX
+***** ERROR:  Illegal character in label or opcode
+0E47 06                    1991 	OR	AL,CH
+***** ERROR:  Invalid operand
+0E48 B7 09                 1992 	CALL	PUT
+***** ERROR:  Invalid operand
+0E4A 63 78 7A              1993 	POP	AX
+***** ERROR:  Invalid operand
+0E4D E3                    1994 	SAHF
+***** ERROR:  Invalid operand
+0E4E B7 09                 1995 	JNZ	$+5
+***** ERROR:  Invalid operand
+0E50 6E 61 65              1996 	JMP	PUTBYT
+***** ERROR:  Invalid operand
+0E53 72                    1997 	JMP	PUTWOR
+***** ERROR:  Invalid operand
+0E54 B7 09                 1998 
+***** ERROR:  Invalid operand
+0E56 6E 6C 65              1999 ERR8:	JMP	ERROR
+***** ERROR:  Invalid operand
+0E59 7F                    2000 
+***** ERROR:  Invalid operand
+0E5A 03                    2001 GRP14:
+***** ERROR:  Invalid operand
+0E5B 00 00                 2002 ;JMP and CALL mnemonics
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+0E5D 64 73                 2003 	LAHF
+***** ERROR:  Invalid operand
+0E5F C5                    2004 	XCHG	AH,AL
+***** ERROR:  Invalid operand
+0E60 00 00                 2005 	PUSH	AX
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+0E62                       2006 	XCHG	AH,AL
+***** ERROR:  Illegal character in label or opcode
+0E62 05                    2007 	MOV	B,[MAXFLG],3	;Allow "L" flag
+***** ERROR:  Invalid operand
+0E63 B7 09                 2008 	CALL	GETOP
+***** ERROR:  Invalid operand
+0E65 6F 64 62              2009 	CMP	AL,CONST
+***** ERROR:  Invalid operand
+0E68 AC                    2010 	JZ	DIRECT
+***** ERROR:  Invalid operand
+0E69 75 07                 2011 	MOV	CL,20
+***** ERROR:  Invalid operand
+0E6B 61 68 66              2012 	CMP	AL,REG
+***** ERROR:  Invalid operand
+0E6E 9F                    2013 	JZ	ERR8
+***** ERROR:  Invalid operand
+0E6F 75 07                 2014 	CMP	AL,SREG
+***** ERROR:  Invalid operand
+0E71                       2015 	JZ	ERR8
+***** ERROR:  Illegal character in label or opcode
+0E71 04                    2016 	CMP	AL,XREG
+***** ERROR:  Invalid operand
+0E72 B7 09                 2017 	JNZ	NOTRG
+***** ERROR:  Invalid operand
+0E74 6F 6F 70 7A           2018 	OR	DL,0C0H
+***** ERROR:  Invalid operand
+0E78 E1                    2019 NOTRG:
+***** ERROR:  Invalid operand
+0E79 75 07                 2020 ;Indirect jump. DL has addressing mode.
+***** ERROR:  Invalid operand
+0E7B 6F 64 73 77           2021 	MOV	AL,0FFH
+***** ERROR:  Invalid operand
+0E7F AD                    2022 	CALL	PUT
+***** ERROR:  Invalid operand
+0E80 02                    2023 	POP	AX
+***** ERROR:  Invalid operand
+0E81 B7 09                 2024 	XCHG	AH,AL
+***** ERROR:  Invalid operand
+0E83 6F 6F 70 6E 7A        2025 	SAHF
+***** ERROR:  Invalid operand
+0E88 E0                    2026 	AND	AL,38H
+***** ERROR:  Invalid operand
+0E89 02                    2027 	OR	AL,DL
+***** ERROR:  Invalid operand
+0E8A 3D 07                 2028 	MOV	CH,[FLAG]
+***** ERROR:  Invalid operand
+0E8C 75 6C                 2029 	CMP	CH,3		;Flag "L" present?
+***** ERROR:  Invalid operand
+0E8E 20                    2030 	JZ	PUTADDJ		;If so, do inter-segment
+***** ERROR:  Invalid operand
+0E8F 02                    2031 	MOV	CL,27H
+***** ERROR:  Invalid operand
+0E90 75 07                 2032 	CMP	CH,-1		;Better not be a flag
+***** ERROR:  Invalid operand
+0E92 6F 76 77              2033 	JNZ	ERR8
+***** ERROR:  Invalid operand
+0E95 A5                    2034 	AND	AL,0F7H		;Convert to intra-segment
+***** ERROR:  Invalid operand
+0E96 02                    2035 PUTADDJ:
+***** ERROR:  Invalid operand
+0E97 75 07                 2036 	JMP	PUTADD
+***** ERROR:  Invalid operand
+0E99 6F 76 73 77           2037 DIRECT:
+***** ERROR:  Invalid operand
+0E9D A5                    2038 	MOV	AL,[SYM]
+***** ERROR:  Invalid operand
+0E9E 03                    2039 	CMP	AL,','
+***** ERROR:  Invalid operand
+0E9F 00 00                 2040 	JZ	LONGJ
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+0EA1 65 67                 2041 	POP	AX
+***** ERROR:  Invalid operand
+0EA3 18                    2042 	XCHG	AH,AL
+***** ERROR:  Invalid operand
+0EA4 75 07                 2043 	SAHF
+***** ERROR:  Invalid operand
+0EA6                       2044 	DEC	AL
+***** ERROR:  Illegal character in label or opcode
+0EA6 01                    2045 	CMP	AL,0E9H
+***** ERROR:  Invalid operand
+0EA7 00 00                 2046 	JZ	GOTOP
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+0EA9                       2047 	MOV	AL,0E8H
+***** ERROR:  Illegal character in label or opcode
+0EA9 02                    2048 GOTOP:
+***** ERROR:  Invalid operand
+0EAA 51 08                 2049 	CALL	PUT
+***** ERROR:  Invalid operand
+0EAC 72 67                 2050 	MOV	DX,[PC]
+***** ERROR:  Invalid operand
+0EAE 00                    2051 	INC	DX
+***** ERROR:  Invalid operand
+0EAF 02                    2052 	INC	DX
+***** ERROR:  Invalid operand
+0EB0 51 08                 2053 	SUB	[DATA],DX
+***** ERROR:  Invalid operand
+0EB2 75 74 77              2054 	JMP	PUTWOR
+***** ERROR:  Invalid operand
+0EB5 E7                    2055 LONGJ:
+***** ERROR:  Invalid operand
+0EB6 02                    2056 	POP	AX
+***** ERROR:  Invalid operand
+0EB7 3D 0A                 2057 	XCHG	AH,AL
+***** ERROR:  Invalid operand
+0EB9 75 74                 2058 	SAHF
+***** ERROR:  Invalid operand
+0EBB 03                    2059 	CALL	PUT
+***** ERROR:  Invalid operand
+0EBC 02                    2060 	CALL	PUTWOR
+***** ERROR:  Invalid operand
+0EBD F8 07                 2061 	CALL	GETOP
+***** ERROR:  Invalid operand
+0EBF 6F 70 66              2062 	MOV	CL,20
+***** ERROR:  Invalid operand
+0EC2 9D                    2063 	CMP	AL,CONST
+***** ERROR:  Invalid operand
+0EC3 01                    2064 	JNZ	ERR8
+***** ERROR:  Invalid operand
+0EC4 75 07                 2065 	JMP	PUTWOR
+***** ERROR:  Invalid operand
+0EC6                       2066 
+***** ERROR:  Illegal character in label or opcode
+0EC6 06                    2067 GRP16:
+***** ERROR:  Invalid operand
+0EC7 7C 09                 2068 ;RET mnemonic
+***** ERROR:  Invalid operand
+0EC9 65 70                 2069 	LAHF
+***** ERROR:  Invalid operand
+0ECB F3                    2070 	XCHG	AH,AL
+***** ERROR:  Invalid operand
+0ECC 00 00                 2071 	PUSH	AX
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+0ECE 6F 72                 2072 	XCHG	AH,AL
+***** ERROR:  Invalid operand
+0ED0 08                    2073 	CALL	GETSYM
+***** ERROR:  Invalid operand
+0ED1 00 00                 2074 	CMP	AL,5
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+0ED3 63 72                 2075 	JZ	LONGR
+***** ERROR:  Invalid operand
+0ED5 18                    2076 	CMP	AL,EOL
+***** ERROR:  Invalid operand
+0ED6 02                    2077 	JZ	NODEC
+***** ERROR:  Invalid operand
+0ED7 75 07                 2078 	CMP	AL,';'
+***** ERROR:  Invalid operand
+0ED9 65 70 65              2079 	JZ	NODEC
+***** ERROR:  Invalid operand
+0EDC F3                    2080 GETSP:
+***** ERROR:  Invalid operand
+0EDD 02                    2081 	CALL	GETOP1
+***** ERROR:  Invalid operand
+0EDE 75 07                 2082 	POP	CX
+***** ERROR:  Invalid operand
+0EE0 65 70 6E 65           2083 	CMP	AL,CONST
+***** ERROR:  Invalid operand
+0EE4 F2                    2084 	MOV	CL,20
+***** ERROR:  Invalid operand
+0EE5 0B                    2085 	JNZ	ERR9
+***** ERROR:  Invalid operand
+0EE6 00 00                 2086 	MOV	AL,CH
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+0EE8 62 62                 2087 	AND	AL,0FEH
+***** ERROR:  Invalid operand
+0EEA 1A                    2088 	CALL	PUT
+***** ERROR:  Invalid operand
+0EEB 00 00                 2089 	JMP	PUTWOR
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+0EED 74 63                 2090 LONGR:
+***** ERROR:  Invalid operand
+0EEF F9                    2091 	CMP	DL,3		;Is flag "L"?
+***** ERROR:  Invalid operand
+0EF0 75 07                 2092 	MOV	CL,27H
+***** ERROR:  Invalid operand
+0EF2 74 69                 2093 	JNZ	ERR10		;If not, bad flag
+***** ERROR:  Invalid operand
+0EF4 FB                    2094 	POP	AX
+***** ERROR:  Invalid operand
+0EF5 00 00                 2095 	XCHG	AH,AL
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+0EF7 68 72                 2096 	SAHF
+***** ERROR:  Invalid operand
+0EF9 28                    2097 	OR	AL,8
+***** ERROR:  Invalid operand
+0EFA 00 00                 2098 	LAHF
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+0EFC 61 72                 2099 	XCHG	AH,AL
+***** ERROR:  Invalid operand
+0EFE 38                    2100 	PUSH	AX
+***** ERROR:  Invalid operand
+0EFF 00 00                 2101 	XCHG	AH,AL
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+0F01                       2102 NOTLON:
+***** ERROR:  Illegal character in label or opcode
+0F01 05                    2103 	CALL	GETSYM
+***** ERROR:  Invalid operand
+0F02 75 07                 2104 	CMP	AL,EOL
+***** ERROR:  Invalid operand
+0F04 63 61 77              2105 	JZ	DORET
+***** ERROR:  Invalid operand
+0F07 AF                    2106 	CMP	AL,';'
+***** ERROR:  Invalid operand
+0F08 75 07                 2107 	JZ	DORET
+***** ERROR:  Invalid operand
+0F0A 74 6F 77              2108 	CMP	AL,','
+***** ERROR:  Invalid operand
+0F0D AB                    2109 	JNZ	L0011
+***** ERROR:  Invalid operand
+0F0E 75 07                 2110 	CALL	GETSYM
+***** ERROR:  Invalid operand
+0F10                       2111 L0011:	
+***** ERROR:  Illegal character in label or opcode
+0F10 04                    2112 	JP	GETSP
+***** ERROR:  Invalid operand
+0F11 75 07                 2113 NODEC:
+***** ERROR:  Invalid operand
+0F13 63 61 73 77           2114 ;Return is intra-segment (short) without add to SP. 
+***** ERROR:  Invalid operand
+0F17 AF                    2115 ;Record position for RET symbol.
+***** ERROR:  Invalid operand
+0F18 75 07                 2116 	MOV	BX,[PC]
+***** ERROR:  Invalid operand
+0F1A 74 6F 73 77           2117 	MOV	[LSTRET],BX
+***** ERROR:  Invalid operand
+0F1E AB                    2118 	XCHG	DX,BX
+***** ERROR:  Invalid operand
+0F1F 01                    2119 	MOV	BX,[RETPT]
+***** ERROR:  Invalid operand
+0F20 25 0A                 2120 	MOV	AL,BH
+***** ERROR:  Invalid operand
+0F22                       2121 	OR	AL,BL
+***** ERROR:  Illegal character in label or opcode
+0F22 01                    2122 	JZ	DORET
+***** ERROR:  Invalid operand
+0F23 75 07                 2123 	MOV	B,[BX],1
+***** ERROR:  Invalid operand
+0F25                       2124 	INC	BX
+***** ERROR:  Illegal character in label or opcode
+0F25 01                    2125 	MOV	[BX],DX
+***** ERROR:  Invalid operand
+0F26 75 07                 2126 	MOV	BX,0
+***** ERROR:  Invalid operand
+0F28                       2127 	MOV	[RETPT],BX
+***** ERROR:  Illegal character in label or opcode
+0F28 01                    2128 DORET:
+***** ERROR:  Invalid operand
+0F29 00 00                 2129 	POP	AX
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+0F2B                       2130 	XCHG	AH,AL
+***** ERROR:  Illegal character in label or opcode
+0F2B 02                    2131 	SAHF
+***** ERROR:  Invalid operand
+0F2C 15 08                 2132 	JMP	PUT
+***** ERROR:  Invalid operand
+0F2E 6C 61 74              2133 
+***** ERROR:  Invalid operand
+0F31 D7                    2134 GRP17:
+***** ERROR:  Invalid operand
+0F32                       2135 	CALL	PUT
+***** ERROR:  Illegal character in label or opcode
+0F32                       2136 	CALL	GETOP
+0F32                       2137 	CMP	AL,CONST
+0F32                       2138 	MOV	CL,20
+***** ERROR:  Illegal character in label or opcode
+0F32                       2139 ERR9:	JNZ	ERR10
+0F32 01                    2140 	MOV	BX,[DATA]
+0F33 78 6D B1              2141 	MOV	DX,[PC]
+***** ERROR:  Invalid operand
+0F36                       2142 	INC	DX
+***** ERROR:  Illegal character in label or opcode
+0F36                       2143 	SUB	BX,DX
+***** ERROR:  Illegal character in label or opcode
+0F36 03                    2144 	MOV	[DATA],BX
+***** ERROR:  Invalid operand
+0F37 0E C1                 2145 	CALL	PUTBYT
+***** ERROR:  Invalid operand
+0F39 90 00                 2146 	MOV	BX,[DLABEL]
+***** ERROR:  Invalid operand
+0F3B 01 E1                 2147 	MOV	AL,BH
+***** ERROR:  Invalid operand
+0F3D                       2148 	OR	AL,BL
+***** ERROR:  Illegal character in label or opcode
+0F3D 02                    2149 	JNZ	RET
+***** ERROR:  Invalid operand
+0F3E 9F 20                 2150 	MOV	BX,[DATA]
+***** ERROR:  Invalid operand
+0F40 9F 30                 2151 	MOV	AL,BL
+***** ERROR:  Invalid operand
+0F42                       2152 	CBW
+***** ERROR:  Illegal character in label or opcode
+0F42 05                    2153 	CMP	AX,BX		;Signed 8-bit number?
+***** ERROR:  Invalid operand
+0F43 68 D1                 2154 	JZ	RET
+***** ERROR:  Invalid operand
+0F45 68 D9                 2155 	MOV	CL,31
+***** ERROR:  Invalid operand
+0F47 01 E0                 2156 ERR10:	JMP	ERROR
+***** ERROR:  Invalid operand
+0F49 06 D9                 2157 	RET
+***** ERROR:  Invalid operand
+0F4B 03 E2                 2158 GRP18:
+***** ERROR:  Invalid operand
+0F4D                       2159 	CALL	GETOP
+***** ERROR:  Illegal character in label or opcode
+0F4D 06                    2160 	CMP	AL,CONST
+***** ERROR:  Invalid operand
+0F4E 0E F1                 2161 	MOV	CL,20
+***** ERROR:  Invalid operand
+0F50 90 30                 2162 	JNZ	ERR10
+***** ERROR:  Invalid operand
+0F52 0E F9                 2163 	MOV	BX,[DLABEL]
+***** ERROR:  Invalid operand
+0F54 90 38                 2164 	MOV	AL,BH
+***** ERROR:  Invalid operand
+0F56 01 F6                 2165 	OR	AL,BL
+***** ERROR:  Invalid operand
+0F58 03 E1                 2166 	JNZ	GENINT
+***** ERROR:  Invalid operand
+0F5A                       2167 	MOV	BX,[DATA]
+***** ERROR:  Illegal character in label or opcode
+0F5A 01                    2168 	MOV	DX,3
+***** ERROR:  Invalid operand
+0F5B 03 E0                 2169 	SBB	BX,DX
+***** ERROR:  Invalid operand
+0F5D                       2170 	JNZ	GENINT
+***** ERROR:  Illegal character in label or opcode
+0F5D 01                    2171 	MOV	AL,0CCH
+***** ERROR:  Invalid operand
+0F5E C5 00                 2172 	JMP	PUT
+***** ERROR:  Invalid operand
+0F60                       2173 GENINT:
+***** ERROR:  Illegal character in label or opcode
+0F60 0D                    2174 	MOV	AL,0CDH
+***** ERROR:  Invalid operand
+0F61 A2 00                 2175 	CALL	PUT
+***** ERROR:  Invalid operand
+0F63 B3 00                 2176 	JMP	PUTBYT
+***** ERROR:  Invalid operand
+0F65 A2 20                 2177 
+***** ERROR:  Invalid operand
+0F67 B3 18                 2178 GRP19:	;ESC opcode
+***** ERROR:  Invalid operand
+0F69 A3 10                 2179 	CALL	GETOP
+***** ERROR:  Invalid operand
+0F6B A2 08                 2180 	MOV	CL,20
+***** ERROR:  Invalid operand
+0F6D A2 30                 2181 	CMP	AL,CONST
+***** ERROR:  Invalid operand
+0F6F A2 28                 2182 	JNZ	ERRJ		;First operand must be immediate
+***** ERROR:  Invalid operand
+0F71 A2 38                 2183 	MOV	CL,1EH
+***** ERROR:  Invalid operand
+0F73 A2 10                 2184 	TEST	[DLABEL],-1	;See if all labels have been defined
+***** ERROR:  Invalid operand
+0F75 A2 18                 2185 	JNZ	ERRJ
+***** ERROR:  Invalid operand
+0F77 01 F7                 2186 	MOV	AX,[DATA]
+***** ERROR:  Invalid operand
+0F79 03 E3                 2187 	CMP	AX,64		;Must only be 6 bits
+***** ERROR:  Invalid operand
+0F7B                       2188 	MOV	CL,1FH
+***** ERROR:  Illegal character in label or opcode
+0F7B 0A                    2189 	JNB	ERRJ
+***** ERROR:  Invalid operand
+0F7C F9 00                 2190 	MOV	BL,AL		;Save for second byte
+***** ERROR:  Invalid operand
+0F7E 01 EE                 2191 	SHR	AL
+***** ERROR:  Invalid operand
+0F80 01 E8                 2192 	SHR	AL
+***** ERROR:  Invalid operand
+0F82 01 EB                 2193 	SHR	AL
+***** ERROR:  Invalid operand
+0F84 01 E9                 2194 	OR	AL,0D8H		;ESC opcode
+***** ERROR:  Invalid operand
+0F86 01 EA                 2195 	CALL	PUT
+***** ERROR:  Invalid operand
+0F88 01 EC                 2196 	PUSH	BX
+***** ERROR:  Invalid operand
+0F8A 01 ED                 2197 	CALL	GETOP2
+***** ERROR:  Invalid operand
+0F8C 99 28                 2198 	POP	BX
+***** ERROR:  Invalid operand
+0F8E 99 20                 2199 	AND	BL,7		;Low 3 bits of first operand
+***** ERROR:  Invalid operand
+0F90                       2200 	SHL	BL
+***** ERROR:  Illegal character in label or opcode
+0F90 02                    2201 	SHL	BL
+***** ERROR:  Invalid operand
+0F91 0E C9                 2202 	SHL	BL
+***** ERROR:  Invalid operand
+0F93 90 08                 2203 	CMP	AL,UNDEFID	;Check for memory operand
+***** ERROR:  Invalid operand
+0F95                       2204 	JZ	ESCMEM
+***** ERROR:  Illegal character in label or opcode
+0F95 01                    2205 	CMP	AL,CONST	;Check for another immediate
+***** ERROR:  Invalid operand
+0F96 81 00                 2206 	JZ	ESCIMM
+0F98                       2207 	MOV	CL,20
+***** ERROR:  Illegal character in label or opcode
+0F98                       2208 ERRJ:	JMP	ERROR
+***** ERROR:  Illegal character in label or opcode
+0F98 01                    2209 
+***** ERROR:  Invalid operand
+0F99 01 D0                 2210 ESCMEM:
+***** ERROR:  Invalid operand
+0F9B                       2211 	OR	BL,DL		;Combine mode with first operand
+***** ERROR:  Illegal character in label or opcode
+0F9B 03                    2212 	MOV	AL,BL
+***** ERROR:  Invalid operand
+0F9C 01 F8                 2213 	JMP	PUTADD
+***** ERROR:  Invalid operand
+0F9E 01 F2                 2214 
+***** ERROR:  Invalid operand
+0FA0 01 F3                 2215 ESCIMM:
+***** ERROR:  Invalid operand
+0FA2                       2216 	MOV	CL,1EH
+***** ERROR:  Illegal character in label or opcode
+0FA2 02                    2217 	TEST	[DLABEL],-1	;See if second operand is fully defined
+***** ERROR:  Invalid operand
+0FA3 01 FC                 2218 	JNZ	ERRJ
+***** ERROR:  Invalid operand
+0FA5 9D 20                 2219 	MOV	AX,[DATA]
+***** ERROR:  Invalid operand
+0FA7                       2220 	MOV	CL,1FH
+***** ERROR:  Illegal character in label or opcode
+0FA7 0C                    2221 	CMP	AX,8		;Must only be 3 bit value
+***** ERROR:  Invalid operand
+0FA8 ED D0                 2222 	JNB	ERRJ
+***** ERROR:  Invalid operand
+0FAA FF D8                 2223 	OR	AL,BL		;Combine first and second operands
+***** ERROR:  Invalid operand
+0FAC 0E E1                 2224 	OR	AL,0C0H		;Force "register" mode
+***** ERROR:  Invalid operand
+0FAE 90 E0                 2225 	JMP	PUT
+***** ERROR:  Invalid operand
+0FB0 0E E9                 2226 
+***** ERROR:  Invalid operand
+0FB2 90 E8                 2227 GRP20:
+***** ERROR:  Invalid operand
+0FB4 01 FA                 2228 	MOV	CH,AL
+***** ERROR:  Invalid operand
+0FB6 01 FD                 2229 	MOV	CL,1
+***** ERROR:  Invalid operand
+0FB8 9D 30                 2230 	CALL	MROPS
+***** ERROR:  Invalid operand
+0FBA 99 38                 2231 	MOV	CL,0F6H
+***** ERROR:  Invalid operand
+0FBC 99 30                 2232 	CALL	IMMED
+***** ERROR:  Invalid operand
+0FBE 9D 38                 2233 	MOV	CH,0A8H
+***** ERROR:  Invalid operand
+0FC0                       2234 	JMP	AIMM
+***** ERROR:  Illegal character in label or opcode
+0FC0 01                    2235 GRP21:
+***** ERROR:  Invalid operand
+0FC1 01 E4                 2236 	CALL	GETOP
+***** ERROR:  Invalid operand
+0FC3                       2237 	CMP	AL,SREG
+***** ERROR:  Illegal character in label or opcode
+0FC3 01                    2238 	MOV	CL,28
+***** ERROR:  Invalid operand
+0FC4 80 00                 2239 	JNZ	ERRJ
+0FC6                       2240 	MOV	CH,26H
+***** ERROR:  Illegal character in label or opcode
+0FC6                       2241 PACKREG:
+***** ERROR:  Illegal character in label or opcode
+0FC6 03                    2242 	MOV	AL,DL
+***** ERROR:  Invalid operand
+0FC7 41 C9                 2243 	ADD	AL,AL
+***** ERROR:  Invalid operand
+0FC9 01 E5                 2244 	ADD	AL,AL
+***** ERROR:  Invalid operand
+0FCB 01 F4                 2245 	ADD	AL,AL
+***** ERROR:  Invalid operand
+0FCD                       2246 	OR	AL,CH
+***** ERROR:  Illegal character in label or opcode
+0FCD 02                    2247 	JMP	PUT
+***** ERROR:  Invalid operand
+0FCE 01 F1                 2248 GRP22:
+***** ERROR:  Invalid operand
+0FD0 01 F9                 2249 	CALL	GETOP
+***** ERROR:  Invalid operand
+0FD2                       2250 	MOV	CX,8F00H
+***** ERROR:  Illegal character in label or opcode
+0FD2                       2251 	CMP	AL,UNDEFID
+***** ERROR:  Illegal character in label or opcode
+0FD2                       2252 	JNZ	$+5
+0FD2                       2253 	JMP	PMEM
+0FD2                       2254 	MOV	CH,58H
+0FD2                       2255 	CMP	AL,XREG
+0FD2                       2256 	JNZ	$+5
+0FD2                       2257 	JMP	PXREG
+0FD2                       2258 	MOV	CH,7
+0FD2                       2259 	CMP	AL,SREG
+***** ERROR:  Illegal character in label or opcode
+0FD2                       2260 	JZ	PACKREG
+0FD2                       2261 	MOV	CL,20
+0FD2                       2262 ERR11:	JMP	ERROR
+0FD2                       2263 GRP23:
+0FD2                       2264 	MOV	[DATSIZ],AL
+***** ERROR:  Illegal character in label or opcode
+0FD2 84 0D                 2265 GETDAT:
+***** ERROR:  Invalid operand
+0FD4 84 0D                 2266 	CALL	GETSYM
+***** ERROR:  Invalid operand
+0FD6 84 0D                 2267 	MOV	AL,2
+***** ERROR:  Invalid operand
+0FD8 84 0D                 2268 	CALL	VAL1
+***** ERROR:  Invalid operand
+0FDA 84 0D                 2269 	MOV	AL,[SYM]
+***** ERROR:  Invalid operand
+0FDC 84 0D                 2270 	CMP	AL,','
+0FDE 9A 0D                 2271 	MOV	AL,[DATSIZ]
+***** ERROR:  Invalid operand
+0FE0 B5 0D                 2272 	JNZ	ENDDAT
+***** ERROR:  Invalid operand
+0FE2 00 00                 2273 	CALL	SAVDAT
+***** ERROR:  Undefined label
+0FE4 C8 0D                 2274 	JP	GETDAT
+***** ERROR:  Invalid operand
+0FE6 84 0D                 2275 ENDDAT:
+***** ERROR:  Invalid operand
+0FE8 D6 0D                 2276 	CMP	AL,2
+0FEA D9 0D                 2277 	JNZ	SAVDAT
+***** ERROR:  Invalid operand
+0FEC E1 0D                 2278 	MOV	BX,[DATA]
+***** ERROR:  Invalid operand
+0FEE 84 0D                 2279 	LAHF
+0FF0 84 0D                 2280 	OR	BL,080H
+***** ERROR:  Invalid operand
+0FF2 84 0D                 2281 	SAHF
+***** ERROR:  Invalid operand
+0FF4 84 0D                 2282 	MOV	[DATA],BX
+0FF6 84 0D                 2283 SAVDAT:
+***** ERROR:  Invalid operand
+0FF8 84 0D                 2284 	OR	AL,AL
+***** ERROR:  Invalid operand
+0FFA 84 0D                 2285 	JZ	$+5
+0FFC E4 0D                 2286 	JMP	PUTBYT
+***** ERROR:  Invalid operand
+0FFE 84 0D                 2287 	JMP	PUTWOR
+***** ERROR:  Invalid operand
+1000 EA 0D                 2288 IF:
+1002 00 00                 2289 	OR	BX,BX
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+1004 84 0D                 2290 	JZ	SKIPCD
+***** ERROR:  Invalid operand
+1006 00 00                 2291 	INC	B,[IFFLG]
+***** ERROR:  Undefined label
+1008 00 00                 2292 	RET
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+100A 84 0D                 2293 
+***** ERROR:  Invalid operand
+100C 84 0D                 2294 SKIPCD:
+100E 84 0D                 2295 	INC	B,[CHKLAB]
+***** ERROR:  Invalid operand
+1010 84 0D                 2296 SKIPLP:
+***** ERROR:  Invalid operand
+1012 84 0D                 2297 	XOR	AL,AL
+1014 00 00                 2298 	CALL	NEXLIN
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+1016 71 0E                 2299 	CALL	NEXTCHR
+***** ERROR:  Invalid operand
+1018 84 0D                 2300 	CMP	AL,1AH
+101A 00 00                 2301 	JZ	END
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+101C 00 00                 2302 	CALL	GETLAB
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+101E 84 0D                 2303 	JC	SKIPLP
+1020 00 00                 2304 	MOV	DI,LENID
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+1022 84 0D                 2305 	MOV	SI,IFEND
+***** ERROR:  Invalid operand
+1024 A6 0E                 2306 	MOV	CH,0
+1026 A9 0E                 2307 	MOV	CL,[DI]
+***** ERROR:  Invalid operand
+1028 84 0D                 2308 	INC	CL
+***** ERROR:  Invalid operand
+102A 84 0D                 2309 	REPE
+102C 00 00                 2310 	CMPB
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+102E 00 00                 2311 	JZ	ENDCOND
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+1030 84 0D                 2312 	MOV	DI,LENID
+1032 84 0D                 2313 	MOV	SI,IFNEST
+***** ERROR:  Invalid operand
+1034 84 0D                 2314 	MOV	CL,[DI]
+***** ERROR:  Invalid operand
+1036 84 0D                 2315 	INC	CL
+1038 C6 0E                 2316 	REPE
+***** ERROR:  Invalid operand
+103A 00 00                 2317 	CMPB
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+103C 84 0D                 2318 	JNZ	SKIPLP
+103E 00 00                 2319 	INC	B,[CHKLAB]
+***** ERROR:  Invalid operand
+***** ERROR:  Undefined label
+1040 10 0F                 2320 	JP	SKIPLP
+***** ERROR:  Invalid operand
+1042 84 0D                 2321 
+1044 84 0D                 2322 ENDCOND:
+***** ERROR:  Invalid operand
+1046 84 0D                 2323 	DEC	B,[CHKLAB]
+***** ERROR:  Invalid operand
+1048 22 0F                 2324 	JNZ	SKIPLP
+104A 84 0D                 2325 	RET
+***** ERROR:  Invalid operand
+104C 84 0D                 2326 
+***** ERROR:  Invalid operand
+104E 84 0D                 2327 ENDIF:
+1050 84 0D                 2328 	MOV	AL,[IFFLG]
+***** ERROR:  Invalid operand
+1052 84 0D                 2329 	MOV	CL,36
+***** ERROR:  Invalid operand
+1054 84 0D                 2330 	DEC	AL
+1056 84 0D                 2331 	JS	ERRJMP
+***** ERROR:  Invalid operand
+1058 84 0D                 2332 	MOV	[IFFLG],AL
+***** ERROR:  Invalid operand
+105A 84 0D                 2333 	RET
+105C 28 0F                 2334 
+***** ERROR:  Invalid operand
+105E 84 0D                 2335 ERRJMP:	JMP	ERROR
+***** ERROR:  Invalid operand
+1060 84 0D                 2336 
+1062 84 0D                 2337 ;*********************************************************************
+***** ERROR:  Invalid operand
+1064 84 0D                 2338 ;
+***** ERROR:  Invalid operand
+1066 84 0D                 2339 ;	PASS 2
+1068 84 0D                 2340 ;
+***** ERROR:  Invalid operand
+106A 84 0D                 2341 ;*********************************************************************
+***** ERROR:  Invalid operand
+106C                       2342 
+***** ERROR:  Illegal character in label or opcode
+106C                       2343 END:
+***** ERROR:  Illegal character in label or opcode
+106C                       2344 	MOV	DL,4
+106C                       2345 WREND:
+106C 36 0F                 2346 	MOV	CH,0FFH
+***** ERROR:  Invalid operand
+106E 42 0F                 2347 	MOV	AL,CH
+***** ERROR:  Invalid operand
+1070 5A 0F                 2348 	CALL	GEN
+***** ERROR:  Invalid operand
+1072 84 0D                 2349 	DEC	DL
+1074 84 0D                 2350 	JNZ	WREND
+1076 60 0F                 2351 	MOV	[BUFPT],SRCBUF
+***** ERROR:  Invalid operand
+1078 84 0D                 2352 	MOV	B,[HEXCNT],-5	;FLAG HEX BUFFER AS EMPTY
+107A 7B 0F                 2353 	MOV	[LSTPNT],LSTBUF
+***** ERROR:  Invalid operand
+107C 98 0F                 2354 	MOV	[HEXPNT],HEXBUF
+***** ERROR:  Invalid operand
+107E 9B 0F                 2355 	XOR	AX,AX
+***** ERROR:  Invalid operand
+1080 A2 0F                 2356 	MOV	[ERRCNT],AX
+***** ERROR:  Invalid operand
+1082 C0 0F                 2357 	MOV	[PC],AX
+***** ERROR:  Invalid operand
+1084 84 0D                 2358 	MOV	[LINE],AX	;Current line number
+1086 C3 0F                 2359 	MOV	[HEXADD],OBJECT
+***** ERROR:  Invalid operand
+1088 CD 0F                 2360 	MOV	DX,FCB
+***** ERROR:  Invalid operand
+108A                       2361 	MOV	AH,OPEN
+***** ERROR:  Illegal character in label or opcode
+108A                       2362 	INT	33		;Re-open source file
+108A                       2363 	XOR	AX,AX
+***** ERROR:  Illegal character in label or opcode
+108A                       2364 	MOV	[FCB+12],AX	;Set CURRENT BLOCK to zero
+***** ERROR:  Illegal character in label or opcode
+108A 01 52 65 67 69 73 74  2365 	MOV	[FCB+20H],AL	;Set NEXT RECORD field to zero
+     65 72 20 6E 6F 74 20 
+     61 6C 6C 6F 77 65 64 
+     20 69 6E 20 69 6D 6D 
+     65 64 69 61 74 65 20 
+     76 61 6C 75 E5       
+***** ERROR:  Invalid operand
+10B2 03 4F 6E 6C 79 20 6F  2366 	MOV	[FCB+14],BUFSIZ
+     6E 65 20 62 61 73 65 
+     20 72 65 67 69 73 74 
+     65 72 20 28 42 58 2C 
+     20 42 50 29 20 61 6C 
+     6C 6F 77 65 E4       
+***** ERROR:  Invalid operand
+10DA 05 4F 6E 6C 79 20 61  2367 	MOV	[COUNT],AL
+     64 64 69 74 69 6F 6E 
+     20 61 6C 6C 6F 77 65 
+     64 20 6F 6E 20 72 65 
+     67 69 73 74 65 72 20 
+     6F 72 20 75 6E 64 65 
+     66 69 6E 65 64 20 6C 
+     61 62 65 EC          
+***** ERROR:  Invalid operand
+110F 07 49 6C 6C 65 67 61  2368 	MOV	CH,1
+     6C 20 64 69 67 69 74 
+     20 69 6E 20 68 65 78 
+     61 64 65 63 69 6D 61 
+     6C 20 6E 75 6D 62 65 
+     F2                   
+***** ERROR:  Invalid operand
+1133 0A 49 6C 6C 65 67 61  2369 	MOV	SI,START
+     6C 20 63 68 61 72 61 
+     63 74 65 72 20 69 6E 
+     20 6C 61 62 65 6C 20 
+     6F 72 20 6F 70 63 6F 
+     64 E5                
+***** ERROR:  Invalid operand
+1158 0C 4F 70 63 6F 64 65  2370 FIXLINE:
+     20 6E 6F 74 20 72 65 
+     63 6F 67 6E 69 7A 65 
+     E4                   
+***** ERROR:  Invalid operand
+116E 15 22 2C 22 20 61 6E  2371 	MOV	DI,START	;Store code over used up intermediate code
+     64 20 73 65 63 6F 6E 
+     64 20 6F 70 65 72 61 
+     6E 64 20 65 78 70 65 
+     63 74 65 E4          
+***** ERROR:  Invalid operand
+118E 17 49 6D 6D 65 64 69  2372 	XOR	AL,AL
+     61 74 65 20 6F 70 65 
+     72 61 6E 64 20 6E 6F 
+     74 20 61 6C 6C 6F 77 
+     65 E4                
+***** ERROR:  Invalid operand
+11AC 19 54 77 6F 20 6D 65  2373 	MOV	[SPC],AL	;No "special" yet (ORG, PUT, DS)
+     6D 6F 72 79 20 6F 70 
+     65 72 61 6E 64 73 20 
+     6E 6F 74 20 61 6C 6C 
+     6F 77 65 E4          
+***** ERROR:  Invalid operand
+11CC 1B 42 6F 74 68 20 6F  2374 	MOV	[ERR],AL	;No second pass errors yet
+     70 65 72 61 6E 64 73 
+     20 6D 75 73 74 20 6E 
+     6F 74 20 62 65 20 72 
+     65 67 69 73 74 65 72 
+     F3                   
+***** ERROR:  Invalid operand
+11F0 1D 46 69 72 73 74 20  2375 NEXBT:
+     6F 70 65 72 61 6E 64 
+     20 6D 75 73 74 20 62 
+     65 20 72 65 67 69 73 
+     74 65 F2             
+***** ERROR:  Invalid operand
+120F 1F 56 61 6C 75 65 20  2376 	SHL	CL		;Shift out last bit of previous code
+     6F 75 74 20 6F 66 20 
+     72 61 6E 67 E5       
+***** ERROR:  Invalid operand
+1222 21 4D 75 73 74 20 68  2377 	DEC	CH		;Still have codes left?
+     61 76 65 20 6C 61 62 
+     65 6C 20 6F 6E 20 73 
+     61 6D 65 20 6C 69 6E 
+     E5                   
+***** ERROR:  Invalid operand
+123F 24 45 4E 44 49 46 20  2378 	JNZ	TESTTYP
+     77 69 74 68 6F 75 74 
+     20 49 C6             
+***** ERROR:  Invalid operand
+1250 26 49 6C 6C 65 67 61  2379 	LODB			;Get next flag byte
+     6C 20 65 78 70 72 65 
+     73 73 69 6F EE       
+***** ERROR:  Invalid operand
+1263 64 55 6E 64 65 66 69  2380 	MOV	CL,AL
+     6E 65 64 20 6C 61 62 
+     65 EC                
+***** ERROR:  Invalid operand
+1273 FF                    2381 	MOV	CH,4
+***** ERROR:  Invalid operand
+1274 2A 2A 2A 2A 2A 20 45  2382 TESTTYP:
+     52 52 4F 52 3A 20 A0 
+***** ERROR:  Invalid operand
+1282 0D 0A 49 6E 73 75 66  2383 	SHL	CL		;Set flags based on two bits
+     66 69 63 69 65 6E 74 
+     20 6D 65 6D 6F 72 79 
+     0D 0A 24             
+***** ERROR:  Invalid operand
+129A 0D 0A 44 69 73 6B 20  2384 	JO	FIXUP
+     66 75 6C 6C 0D 0A 24 
+***** ERROR:  Invalid operand
+12A8 0D 0A 0D 0A 45 72 72  2385 	LODB
+     6F 72 20 43 6F 75 6E 
+     74 20 BD             
+***** ERROR:  Invalid operand
+12B9 46 72 65 65 20 73 70  2386 	JC	EMARK
+     61 63 65 20 3D 20 20 
+     20 20 20 20 20 A0    
+***** ERROR:  Invalid operand
+12CD 41 53 4D 00 00        2387 OBJBT:
+***** ERROR:  Invalid operand
+12D2 02 69 66              2388 	STOB
+***** ERROR:  Invalid operand
+12D5 00 20 20 20 20 20 20  2389 	JP	NEXBT
+     20 20 48 45 58 00 00 
+     00 00                
+***** ERROR:  Invalid operand
+12E5 00 00 00 00 00        2390 
+***** ERROR:  Invalid operand
+12EA                       2391 FIXUP:
+***** ERROR:  Invalid operand
+12FA                       2392 ;Either a word or byte fixup is needed from a forward reference
+***** ERROR:  Invalid operand
+12FC                       2393 	LODW			;Get pointer to symbol
+***** ERROR:  Invalid operand
+12FE                       2394 	XCHG	AX,BX
+***** ERROR:  Invalid operand
+12FF                       2395 	LODW			;Get constant part
+***** ERROR:  Invalid operand
+1301                       2396 	ADD	AX,[BX+1]	;Add symbol value to constant part
+***** ERROR:  Invalid operand
+1303                       2397 	CMP	B,[BX],0	;See if symbol got defined
+***** ERROR:  Invalid operand
+1305                       2398 	JNZ	HAVDEF
+***** ERROR:  Invalid operand
+1355                       2399 	MOV	B,[ERR],100	;Undefined - flag error
+***** ERROR:  Invalid operand
+1356                       2400 	XOR	AX,AX
+***** ERROR:  Invalid operand
+1358                       2401 HAVDEF:
+***** ERROR:  Invalid operand
+1359                       2402 	OR	CL,CL		;See if word or byte fixup
+***** ERROR:  Invalid operand
+135A                       2403 	JS	DEFBYT
+***** ERROR:  Invalid operand
+135B                       2404 	STOW
+***** ERROR:  Invalid operand
+135C                       2405 	JP	NEXBT
+***** ERROR:  Invalid operand
+135E                       2406 
+***** ERROR:  Invalid operand
+1360                       2407 DEFBYT:
+***** ERROR:  Invalid operand
+1361                       2408 	MOV	DX,AX
+***** ERROR:  Invalid operand
+1362                       2409 	CBW			;Extend sign
+***** ERROR:  Invalid operand
+1363                       2410 	CMP	AX,DX		;See if in range +127 to -128
+***** ERROR:  Invalid operand
+1365                       2411 	JZ	OBJBT		;If so, it's always OK
+***** ERROR:  Invalid operand
+1367                       2412 	NOT	AH		;Check for range +255 to -256
+***** ERROR:  Invalid operand
+1368                       2413 	CMP	AH,DH
+***** ERROR:  Invalid operand
+136A                       2414 	JNZ	RNGERR		;Must always be in this range
+***** ERROR:  Invalid operand
+136C                       2415 ;Check for short jump. If so, we're out of range; otherwise we're OK
+***** ERROR:  Invalid operand
+136C                       2416 	CMP	DI,START+1	;Only one other byte on line?
+***** ERROR:  Undefined label not allowed
+136C                       2417 	JNZ	OBJBT		;Can't be short jump if not
+***** ERROR:  Invalid operand
+136C                       2418 	MOV	AL,[START]	;Get the first byte of this line
+***** ERROR:  Invalid operand
+
+
+Error Count = 2140
+

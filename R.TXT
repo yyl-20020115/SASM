@@ -1,0 +1,26 @@
+
+Seattle Computer Products 8086 Assembler Version 2.44
+Copyright 1979-1983 by Seattle Computer Products, Inc.
+
+0000                       0028 SYMWID:	EQU	5	;5 symbols per line in dump
+***** ERROR:  Illegal digit in hexadecimal number
+0000                       0030 BUFSIZ:	EQU	1024	;Source code buffer
+***** ERROR:  Illegal digit in hexadecimal number
+0000                       0032 HEXBUFSIZ:EQU	70	;Hex file buffer (26*2 + 5*2 + 3 + EXTRA)
+***** ERROR:  Illegal digit in hexadecimal number
+0000                       0033 EOL:	EQU	13	;ASCII carriage return
+***** ERROR:  Illegal digit in hexadecimal number
+0000                       0037 PRINTMES: EQU	9
+***** ERROR:  Illegal digit in hexadecimal number
+0000                       0038 OPEN:	EQU	15
+***** ERROR:  Illegal character in label or opcode
+0000                       0039 CLOSE:	EQU	16
+***** ERROR:  Illegal digit in hexadecimal number
+0000                       0040 READ:	EQU	20
+***** ERROR:  Illegal character in label or opcode
+
+
+Error Count =    8
+
+Symbol Table size =   145
+Free space =        54063
